@@ -1,0 +1,2938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国企模拟器 V1.3.12 - 季度决策版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK - 同步加载 -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Noto Sans SC', sans-serif; margin: 0; padding: 0; background: #f1f5f9; }
+        .stat-bar { transition: width 0.3s ease; }
+        .fade-in { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-up { animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .game-layout { display: flex; min-height: 100vh; max-width: 100vw; overflow-x: hidden; }
+        .sidebar { width: 240px; min-width: 240px; max-width: 240px; background: #1e293b; color: white; padding: 12px; height: 100vh; overflow-y: auto; box-sizing: border-box; }
+        .main-content { flex: 1; padding: 16px; min-width: 0; max-width: calc(100vw - 240px); box-sizing: border-box; }
+        @media (max-width: 900px) { .sidebar { width: 100%; min-width: auto; max-width: 100%; height: auto; max-height: 40vh; } .main-content { max-width: 100%; } .game-layout { flex-direction: column; } }
+        .notification-card { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .message-bubble { position: relative; }
+        .message-bubble::after { content: ''; position: absolute; bottom: 0; left: -8px; width: 0; height: 0; border: 8px solid transparent; border-bottom-color: #e2e8f0; border-left: 0; }
+    </style>
+</head>
+<body>
+    <div class="game-layout">
+        <!-- 左侧状态栏 -->
+        <div id="sidebar" class="sidebar hidden">
+            <div class="mb-4 pb-4 border-b border-slate-700">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-2xl">🏛️</span>
+                    <div>
+                        <div id="sb-name" class="font-bold">小王</div>
+                        <div id="sb-job" class="text-slate-400 text-xs">行政 | 科员</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span id="sb-quarter" class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold bg-green-500">Q1</span>
+                        <span class="text-xs">第<span id="sb-year">1</span>年</span>
+                    </div>
+                    <span id="sb-age" class="text-slate-400 text-xs">22岁</span>
+                </div>
+            </div>
+
+            <!-- 核心资源 -->
+            <div class="space-y-2 mb-4">
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>💰 现金</span><span id="sb-cash" class="text-green-400 font-bold">5万</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-cash" class="stat-bar bg-green-500 h-1.5 rounded-full" style="width: 5%"></div></div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>📈 年金</span><span id="sb-annuity" class="text-amber-400 font-bold">0万</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-annuity" class="stat-bar bg-amber-500 h-1.5 rounded-full" style="width: 0%"></div></div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>💎 财产</span><span id="sb-total-asset" class="text-cyan-400 font-bold">5万</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-total-asset" class="stat-bar bg-cyan-500 h-1.5 rounded-full" style="width: 0.5%"></div></div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>🤝 人脉</span><span id="sb-guanxi" class="text-purple-400 font-bold">20</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-guanxi" class="stat-bar bg-purple-500 h-1.5 rounded-full" style="width: 20%"></div></div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>📄 资历</span><span id="sb-zili" class="text-blue-400 font-bold">10</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-zili" class="stat-bar bg-blue-500 h-1.5 rounded-full" style="width: 10%"></div></div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>😊 心态</span><span id="sb-mental" class="text-pink-400 font-bold">80</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-mental" class="stat-bar bg-pink-500 h-1.5 rounded-full" style="width: 80%"></div></div>
+                </div>
+                <div class="bg-slate-800 rounded-lg p-2">
+                    <div class="flex justify-between text-xs mb-1"><span>⚠️ 风险</span><span id="sb-risk" class="text-red-400 font-bold">5</span></div>
+                    <div class="bg-slate-700 rounded-full h-1.5"><div id="sb-bar-risk" class="stat-bar bg-red-500 h-1.5 rounded-full" style="width: 5%"></div></div>
+                </div>
+            </div>
+
+            <div class="text-xs text-slate-500 text-center">已度过 <span id="sb-total">1</span> 个季度</div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div id="main-area" class="main-content" style="max-width: 600px; margin: 0 auto; width: 100%;">
+            
+            <!-- 开始页面 -->
+            <div id="start-page" class="text-center py-12">
+                <!-- Logo -->
+                <div class="text-8xl mb-6">🏛️</div>
+                
+                <!-- 标题 -->
+                <h1 class="text-4xl font-bold text-slate-800 mb-2">国企模拟器</h1>
+                
+                <!-- 版本号 -->
+                <div class="text-2xl text-slate-600 mb-4">(V1.3.5)</div>
+                
+                <!-- 副标题 -->
+                <div class="text-slate-400 mb-12">———体验国企牛马的职业生涯———</div>
+                
+                <!-- 游戏操作按钮 -->
+                <div class="flex gap-4 justify-center mb-12">
+                    <button onclick="showNamePage()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-12 rounded-xl text-lg transition">
+                        🚀 开始游戏
+                    </button>
+                    <button onclick="loadGameCloud()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-12 rounded-xl text-lg transition">
+                        📂 加载存档
+                    </button>
+                </div>
+                
+                <!-- 版本说明 -->
+                <div class="bg-white border border-slate-300 rounded-lg p-4 max-w-md mx-auto text-left">
+                    <div class="text-sm text-slate-500">
+                        <span class="font-medium">版本说明：</span>V1.3.5版，新增开始页面加载存档按钮，优化加载体验，无需重复入职流程
+                    </div>
+                </div>
+            </div>
+
+            <!-- 姓名选择页 -->
+            <div id="name-page" class="hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-4 max-w-lg mx-auto">
+                    <div class="text-center mb-6">
+                        <div class="text-sm text-slate-400 uppercase tracking-wider mb-1">CONFIDENTIAL // PERSONNEL FILE</div>
+                        <h2 class="text-2xl font-bold text-slate-800">人员入职档案</h2>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <!-- 姓名 -->
+                        <div>
+                            <label class="block text-xs text-slate-400 uppercase mb-2">姓名 / NAME</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="player-name" value="布翔甘" class="flex-1 text-3xl font-bold text-slate-800 border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2" placeholder="输入姓名">
+                                <button onclick="randomName()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600" title="随机生成">
+                                    🎲
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 随机名字提示 -->
+                        <div class="bg-blue-50 rounded-xl p-4">
+                            <div class="text-xs text-blue-600 mb-2">💡 点击骰子随机生成职场谐音梗名字</div>
+                            <div class="text-sm text-slate-600 space-y-1">
+                                <span class="inline-block bg-white px-2 py-1 rounded mr-2">布翔甘</span>
+                                <span class="inline-block bg-white px-2 py-1 rounded mr-2">费晶丽</span>
+                                <span class="inline-block bg-white px-2 py-1 rounded mr-2">吴薪</span>
+                                <span class="inline-block bg-white px-2 py-1 rounded mr-2">劳思</span>
+                                <span class="inline-block bg-white px-2 py-1 rounded mr-2">梅前</span>
+                                <span class="inline-block bg-white px-2 py-1 rounded mr-2">何必</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="showEduPage()" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition">
+                        下一步：选择学历 →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 规则说明页 -->
+            <div id="rules-page" class="hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+                    <div class="text-center mb-6">
+                        <div class="text-4xl mb-2">📋</div>
+                        <h2 class="text-2xl font-bold text-slate-800">游戏规则</h2>
+                    </div>
+                    
+                    <div class="space-y-4 text-slate-600">
+                        <div class="bg-blue-50 rounded-xl p-4">
+                            <div class="font-bold text-blue-800 mb-2">🎯 胜利条件（满足其一）</div>
+                            <ul class="text-sm space-y-1">
+                                <li>• 晋升至处长级别</li>
+                                <li>• 累计现金达到1000万</li>
+                                <li>• 平安工作到60岁退休</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-red-50 rounded-xl p-4">
+                            <div class="font-bold text-red-800 mb-2">💀 失败条件（满足其一）</div>
+                            <ul class="text-sm space-y-1">
+                                <li>• 心态值降为0（崩溃离职）</li>
+                                <li>• 健康值降为0（重病住院）</li>
+                                <li>• 35岁仍未晋升正科（中年危机）</li>
+                                <li>• 风险值达到100%（东窗事发）</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <div class="font-bold text-slate-800 mb-2">📊 核心属性</div>
+                            <ul class="text-sm space-y-1">
+                                <li>💰 <b>现金</b> - 工资收入、理财、副业</li>
+                                <li>🤝 <b>人脉</b> - 同事关系、领导好感</li>
+                                <li>📄 <b>资历</b> - 工作经验、政治资本</li>
+                                <li>😊 <b>心态</b> - 心理健康、工作满意度</li>
+                                <li>⚠️ <b>风险</b> - 违规操作、灰色地带</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-amber-50 rounded-xl p-4">
+                            <div class="font-bold text-amber-800 mb-2">🏆 晋升规则</div>
+                            <ul class="text-sm space-y-1">
+                                <li>• <b>科员</b> → <b>副科</b>：资历≥40，人脉≥30</li>
+                                <li>• <b>副科</b> → <b>正科</b>：资历≥80，人脉≥60，年龄≤35</li>
+                                <li>• <b>正科</b> → <b>主任</b>：资历≥120，人脉≥90</li>
+                                <li>• <b>主任</b> → <b>高级主任</b>：资历≥180，人脉≥140，入职≥6年</li>
+                                <li>• <b>高级主任</b> → <b>副处</b>：资历≥250，人脉≥200，入职≥10年</li>
+                                <li>• <b>副处</b> → <b>正处</b>：资历≥350，人脉≥280，入职≥15年</li>
+                                <li>• 每季度结束自动检查晋升条件</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-cyan-50 rounded-xl p-4">
+                            <div class="font-bold text-cyan-800 mb-2">📅 年度周期</div>
+                            <ul class="text-sm space-y-1">
+                                <li>• 一年分为4个季度（Q1-Q4）</li>
+                                <li>• 每季度有3个行动点</li>
+                                <li>• 每年第一季度年龄+1</li>
+                                <li>• 每年Q4结束进行年度考核</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-indigo-50 rounded-xl p-4">
+                            <div class="font-bold text-indigo-800 mb-2">💰 经济系统</div>
+                            <div class="text-sm space-y-2">
+                                <div><b>📥 季度收支</b></div>
+                                <ul class="text-xs space-y-1 ml-2">
+                                    <li>• <b>收入</b>：Q1月工资发80%，剩余看公司营收，经营好则年终补发</li>
+                                    <li>• <b>支出</b>：每月扣除生活成本（月薪 × 0.3）</li>
+                                    <li>• <b>净收入</b>：实际到账 = 月薪 × 0.7（Q1为月薪 × 0.5）</li>
+                                </ul>
+                                <div class="mt-2"><b>📈 企业年金</b></div>
+                                <ul class="text-xs space-y-1 ml-2">
+                                    <li>• 入职半年可申请企业年金</li>
+                                    <li>• 每月扣除月薪的5%存入年金</li>
+                                    <li>• 年金需工作10年后方可取出</li>
+                                    <li>• 缴纳满5年后年金可升值</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-green-50 rounded-xl p-4">
+                            <div class="font-bold text-green-800 mb-2">🎮 游戏流程</div>
+                            <ul class="text-sm space-y-1">
+                                <li>1. 选择岗位和学历</li>
+                                <li>2. 每季度有3个行动点</li>
+                                <li>3. 选择行动消耗行动点</li>
+                                <li>4. 行动点用完进入季度结算</li>
+                                <li>5. 触发随机事件，进入下一季度</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <button onclick="showJobSelect()" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition">
+                        我了解了，选择岗位 →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 岗位选择页 -->
+            <div id="job-page" class="hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-4 max-w-lg mx-auto">
+                    <div class="text-center mb-6">
+                        <div class="text-sm text-slate-400 uppercase tracking-wider mb-1">STEP 3 / 3</div>
+                        <h2 class="text-2xl font-bold text-slate-800">选择你的岗位</h2>
+                        <p class="text-slate-500">不同岗位有不同的事件和优势</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <button onclick="selectJob('admin')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 transition" data-job="admin">
+                            <div class="text-2xl mb-1">📋</div>
+                            <div class="font-bold">行政</div>
+                            <div class="text-xs text-slate-500">综合协调</div>
+                            <div class="text-xs text-green-600 mt-1">优势：人脉获取+20%</div>
+                        </button>
+                        <button onclick="selectJob('hr')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 transition" data-job="hr">
+                            <div class="text-2xl mb-1">👥</div>
+                            <div class="font-bold">人力资源</div>
+                            <div class="text-xs text-slate-500">人事管理</div>
+                            <div class="text-xs text-green-600 mt-1">优势：人脉上限+10</div>
+                        </button>
+                        <button onclick="selectJob('finance')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 transition" data-job="finance">
+                            <div class="text-2xl mb-1">💰</div>
+                            <div class="font-bold">财务</div>
+                            <div class="text-xs text-slate-500">预算审计</div>
+                            <div class="text-xs text-green-600 mt-1">优势：现金获取+15%</div>
+                        </button>
+                        <button onclick="selectJob('party')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 transition" data-job="party">
+                            <div class="text-2xl mb-1">🚩</div>
+                            <div class="font-bold">党建</div>
+                            <div class="text-xs text-slate-500">党务宣传</div>
+                            <div class="text-xs text-green-600 mt-1">优势：资历获取+20%</div>
+                        </button>
+                        <button onclick="selectJob('pm')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left opacity-50 cursor-not-allowed relative" data-job="pm" disabled>
+                            <div class="absolute top-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">🔒 需硕士</div>
+                            <div class="text-2xl mb-1">📱</div>
+                            <div class="font-bold">产品</div>
+                            <div class="text-xs text-slate-500">产品设计</div>
+                            <div class="text-xs text-green-600 mt-1">优势：资历获取+20%</div>
+                        </button>
+                        <button onclick="selectJob('op')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 transition" data-job="op">
+                            <div class="text-2xl mb-1">🚀</div>
+                            <div class="font-bold">运营</div>
+                            <div class="text-xs text-slate-500">活动策划</div>
+                            <div class="text-xs text-green-600 mt-1">优势：心态恢复+20%</div>
+                        </button>
+                        <button onclick="selectJob('sales')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 transition" data-job="sales">
+                            <div class="text-2xl mb-1">💼</div>
+                            <div class="font-bold">销售</div>
+                            <div class="text-xs text-slate-500">客户拓展</div>
+                            <div class="text-xs text-green-600 mt-1">优势：现金+25%</div>
+                            <div class="text-xs text-red-500">劣势：风险+15%</div>
+                        </button>
+                        <button onclick="selectJob('dev')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left opacity-50 cursor-not-allowed relative" data-job="dev" disabled>
+                            <div class="absolute top-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">🔒 需硕士</div>
+                            <div class="text-2xl mb-1">💻</div>
+                            <div class="font-bold">开发</div>
+                            <div class="text-xs text-slate-500">系统开发</div>
+                            <div class="text-xs text-green-600 mt-1">优势：现金+20%</div>
+                            <div class="text-xs text-red-500">劣势：心态消耗+10%</div>
+                        </button>
+                        <button onclick="selectJob('procurement')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left opacity-50 cursor-not-allowed relative" data-job="procurement" disabled>
+                            <div class="absolute top-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">🔒 需硕士</div>
+                            <div class="text-2xl mb-1">🛒</div>
+                            <div class="font-bold">采购</div>
+                            <div class="text-xs text-slate-500">物资采购</div>
+                            <div class="text-xs text-green-600 mt-1">优势：现金+20% 人脉+15%</div>
+                            <div class="text-xs text-red-500">劣势：风险+20%</div>
+                        </button>
+                        <button onclick="selectJob('legal')" class="job-btn bg-white border-2 border-slate-200 rounded-xl p-4 text-left opacity-50 cursor-not-allowed relative" data-job="legal" disabled>
+                            <div class="absolute top-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">🔒 需硕士</div>
+                            <div class="text-2xl mb-1">⚖️</div>
+                            <div class="font-bold">法务</div>
+                            <div class="text-xs text-slate-500">法律事务</div>
+                            <div class="text-xs text-green-600 mt-1">优势：风险-30% 资历+15%</div>
+                            <div class="text-xs text-red-500">劣势：现金-10%</div>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-amber-50 rounded-xl p-3 mb-4 text-sm text-amber-700">
+                        💡 产品、开发、采购、法务岗位需要硕士及以上学历
+                    </div>
+                    
+                    <button id="job-next" onclick="startNewGame()" class="w-full bg-slate-300 text-slate-500 font-bold py-4 rounded-xl" disabled>请先选择岗位</button>
+                    <button onclick="showEduPage()" class="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-xl mt-2">← 返回修改学历</button>
+                </div>
+            </div>
+
+            <!-- 学历选择页 -->
+            <div id="edu-page" class="hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-4 max-w-lg mx-auto">
+                    <div class="text-center mb-6">
+                        <div class="text-sm text-slate-400 uppercase tracking-wider mb-1">STEP 2 / 3</div>
+                        <h2 class="text-2xl font-bold text-slate-800">选择学历</h2>
+                    </div>
+                    
+                    <div class="space-y-3 mb-6">
+                        <button onclick="selectEdu('本科')" class="edu-btn w-full bg-white border-2 border-blue-500 bg-blue-50 rounded-xl p-4 text-left" data-edu="本科">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold">📚 本科</div>
+                                    <div class="text-sm text-slate-500">标准开局</div>
+                                </div>
+                                <div class="text-xs text-green-600">✅ 已解锁</div>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-2">年龄22 | 现金5万 | 人脉20 | 资历10 | 心态80</div>
+                        </button>
+                        <button onclick="selectEdu('硕士')" class="edu-btn w-full bg-white border-2 border-slate-200 rounded-xl p-4 text-left opacity-50 cursor-not-allowed" data-edu="硕士" id="edu-master" disabled>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold">🎓 硕士</div>
+                                    <div class="text-sm text-slate-500">高起点</div>
+                                </div>
+                                <div class="text-xs text-slate-400" id="edu-master-status">🔒 通关1次解锁</div>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-2">年龄25 | 现金8万 | 人脉25 | 资历20 | 心态75</div>
+                        </button>
+                        <button onclick="selectEdu('博士')" class="edu-btn w-full bg-white border-2 border-slate-200 rounded-xl p-4 text-left opacity-50 cursor-not-allowed" data-edu="博士" id="edu-phd" disabled>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold">👨‍🎓 博士</div>
+                                    <div class="text-sm text-slate-500">超高起点</div>
+                                </div>
+                                <div class="text-xs text-slate-400" id="edu-phd-status">🔒 通关2次解锁</div>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-2">年龄28 | 现金12万 | 人脉30 | 资历35 | 心态70</div>
+                        </button>
+                    </div>
+                    
+                    <div class="bg-amber-50 rounded-xl p-3 mb-4 text-sm text-amber-700">
+                        💡 当前已完成第 <span id="playthrough-count">0</span> 次通关，学历解锁进度：<span id="edu-progress">本科</span>
+                    </div>
+                    
+                    <button onclick="showJobPage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition">
+                        下一步：选择岗位 →
+                    </button>
+                    <button onclick="showNamePage()" class="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-xl mt-2">← 返回修改姓名</button>
+                </div>
+            </div>
+
+            <!-- 游戏主界面 -->
+            <div id="game-screen" class="hidden">
+                <!-- 顶部导航 -->
+                <div class="bg-white rounded-xl shadow-sm p-3 mb-4 flex gap-2 justify-center flex-wrap">
+                    <button onclick="showRules()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700">📋 规则</button>
+                    <button onclick="showHistory()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700">📜 复盘</button>
+                    <button onclick="saveGameCloud()" class="px-4 py-2 bg-green-100 hover:bg-green-200 rounded-lg text-sm font-medium text-green-700">💾 保存</button>
+                    <button onclick="loadGameCloud()" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg text-sm font-medium text-blue-700">📂 加载</button>
+                    <button onclick="showAbout()" class="px-4 py-2 bg-purple-100 hover:bg-purple-200 rounded-lg text-sm font-medium text-purple-700">👤 关于我</button>
+                    <button onclick="showAd()" class="px-4 py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-sm font-medium text-amber-700">📢 广告位</button>
+                </div>
+
+                <!-- 季度信息卡 -->
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white mb-4 shadow-lg">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-blue-200 text-sm mb-1">CURRENT QUARTER</div>
+                            <div class="text-3xl font-bold">第 <span id="display-year">1</span> 年 <span id="display-quarter">Q1</span></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-blue-200 text-sm mb-1">REMAINING ACTIONS</div>
+                            <div class="text-3xl font-bold"><span id="action-points">3</span> / 3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通知区域 -->
+                <div id="notification-area" class="mb-4">
+                    <!-- 动态生成通知 -->
+                </div>
+
+                <!-- 行动按钮区 -->
+                <div id="action-area" class="space-y-3">
+                    <!-- 动态生成行动按钮 -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 弹窗遮罩 -->
+    <div id="modal-overlay" class="fixed top-0 left-0 right-0 bottom-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto shadow-2xl slide-up">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div id="modal-label" class="text-xs text-slate-400 uppercase tracking-wider mb-1">SYSTEM NOTIFICATION</div>
+                        <h3 id="modal-title" class="text-xl font-bold text-slate-800">标题</h3>
+                    </div>
+                </div>
+                <div id="modal-content" class="text-slate-600 leading-relaxed mb-4">
+                    内容
+                </div>
+                <div id="modal-effects" class="flex flex-wrap gap-2 mb-4">
+                    <!-- 效果标签 -->
+                </div>
+                <button id="modal-btn" onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition">
+                    知道了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        let gameState = {};
+        let selectedJob = null;
+        let selectedEdu = '本科';
+
+        const eduConfig = {
+            本科: { age: 22, cash: 5, guanxi: 20, zili: 10, mental: 80, risk: 5 },
+            硕士: { age: 25, cash: 8, guanxi: 25, zili: 20, mental: 75, risk: 5 },
+            博士: { age: 28, cash: 12, guanxi: 30, zili: 35, mental: 70, risk: 5 }
+        };
+
+        // 年金配置（V1.2.8迭代版）
+        const ANNUITY_RATE = 0.05; // 基础扣除率5%
+        const ANNUITY_GROWTH_RATE = 0.03; // 年升值率3%
+        const ANNUITY_WAIT_YEARS = 5; // 计息等待期5年
+        const ANNUITY_WITHDRAW_INTERVAL = 5; // 每5年可取出
+        const ANNUITY_FIRST_WITHDRAW_YEAR = 6; // 第6年首次可取出
+        const ANNUITY_EXTRA_RATE_PER_YEAR = 0.02; // 每年额外增加2%
+        const ANNUITY_MAX_RATE = 0.30; // 最高扣除率30%
+
+        const jobs = {
+            admin: { name: '行政', icon: '📋', bonus: { guanxiGain: 0.2 } },
+            hr: { name: '人力资源', icon: '👥', bonus: { guanxiMax: 10 } },
+            finance: { name: '财务', icon: '💰', bonus: { cashGain: 0.15 } },
+            party: { name: '党建', icon: '🚩', bonus: { ziliGain: 0.2 } },
+            pm: { name: '产品', icon: '📱', bonus: { ziliGain: 0.2 } },
+            op: { name: '运营', icon: '🚀', bonus: { mentalGain: 0.2 } },
+            dev: { name: '开发', icon: '💻', bonus: { cashGain: 0.2, mentalCost: 0.1 } },
+            sales: { name: '销售', icon: '💼', bonus: { cashGain: 0.25, riskGain: 0.15 } },
+            procurement: { name: '采购', icon: '🛒', bonus: { cashGain: 0.2, guanxiGain: 0.15, riskGain: 0.2 } },
+            legal: { name: '法务', icon: '⚖️', bonus: { riskReduce: 0.3, ziliGain: 0.15, cashReduce: 0.1 } }
+        };
+
+        // 通用随机事件库 - 每季度开始时触发
+        const randomEvents = [
+            {
+                title: '🍻 科室聚餐',
+                desc: '周五晚上科里聚餐，领导让大家都要来。酒桌上推杯换盏，你喝了不少。',
+                effects: { guanxi: 8, mental: -8, cash: -0.5 }
+            },
+            {
+                title: '📢 临时加任务',
+                desc: '领导周五下午布置了紧急任务，要求周一早上交。你整个周末都在加班。',
+                effects: { zili: 8, mental: -10, cash: -0.2 }
+            },
+            {
+                title: '🎓 在职进修机会',
+                desc: '单位有一个在职研究生名额，读完可以评职称。学费3万，学制3年。',
+                effects: { zili: 15, mental: -5, cash: -3 }
+            },
+            {
+                title: '🏥 体检报告',
+                desc: '季度体检，医生说你脂肪肝有点严重，建议多运动少熬夜。',
+                effects: { mental: -5, risk: -2 }
+            },
+            {
+                title: '👨‍👩‍👧 家里催婚',
+                desc: '父母安排了相亲，对方也是体制内的，在教育局工作。',
+                effects: { mental: 5, guanxi: 3, cash: -0.3 }
+            },
+            {
+                title: '📊 部门调整',
+                desc: '单位进行部门调整，有机会去核心业务部门，但竞争很激烈。',
+                effects: { zili: 5, guanxi: -3, mental: -5 }
+            },
+            {
+                title: '🎁 节日送礼',
+                desc: '中秋节快到了，同事们都在讨论给领导送什么礼。',
+                effects: { guanxi: 5, cash: -0.5, risk: 3 }
+            },
+            {
+                title: '💼 借调机会',
+                desc: '上级部门需要借调一个人，为期半年。去的话能认识大领导，但原部门的工作就落下了。',
+                effects: { guanxi: 10, zili: -5, mental: -5 }
+            },
+            {
+                title: '🗳️ 民主测评',
+                desc: '季度民主测评，需要给同事打分。打高了怕被人说拍马屁，打低了怕得罪人。',
+                effects: { guanxi: 3, mental: -3 }
+            },
+            {
+                title: '💰 投资理财',
+                desc: '手里攒了点钱，同事推荐了一个"稳赚不赔"的理财项目。',
+                effects: { cash: 2, risk: 8, mental: 3 }
+            }
+        ];
+
+        // V1.2.0 随机事件系统
+        const randomEventSystem = {
+            minPerYear: 1,
+            maxPerYear: 2,
+            triggeredThisYear: 0,
+            lastYear: 0,
+            shouldTrigger: function() {
+                const currentYear = gameState.year;
+                if (this.lastYear !== currentYear) {
+                    this.lastYear = currentYear;
+                    this.triggeredThisYear = 0;
+                }
+                if (this.triggeredThisYear >= this.maxPerYear) return false;
+                if (Math.random() < 0.3) {
+                    this.triggeredThisYear++;
+                    return true;
+                }
+                return false;
+            }
+        };
+
+        // 所有岗位随机事件库
+        const jobRandomEvents = {
+            sales: [
+                { title: '💼 大客户回扣', desc: '客户暗示如果给回扣，就签大单。', accept: { cash: 5, risk: 15 }, reject: { zili: -2, guanxi: -3, mental: -2 } },
+                { title: '📈 冲业绩造假', desc: '月底业绩差10%，可以找朋友刷单。', accept: { cash: 5, risk: 15 }, reject: { risk: -3, zili: -3, mental: -2 } }
+            ],
+            procurement: [
+                { title: '💰 供应商贿赂', desc: '新供应商暗示可以给你"好处费"。', accept: { cash: 5, risk: 15 }, reject: { zili: -3, guanxi: -5, mental: -1 } },
+                { title: '⚠️ 质量放水', desc: '供应商暗示如果降低质检标准，可以给你返点。', accept: { cash: 3, risk: 10 }, reject: { risk: -3, guanxi: -3, mental: -1 } }
+            ],
+            legal: [
+                { title: '🧹 帮领导擦屁股', desc: '领导有个法律纠纷，希望你"妥善处理"。', accept: { guanxi: 10, risk: 10 }, reject: { guanxi: -8, zili: -5, mental: 2 } },
+                { title: '📄 合同埋雷', desc: '业务催得紧，暗示合同可以"先签后补"。', accept: { cash: 3, risk: 15 }, reject: { risk: -5, guanxi: -3, mental: -3 } }
+            ],
+            admin: [
+                { title: '📋 帮领导办私事', desc: '领导让你帮忙处理一些私人事务。', accept: { guanxi: 8, risk: 10, zili: 2 }, reject: { guanxi: -5, zili: -3, mental: -1 } },
+                { title: '💸 虚报办公费用', desc: '财务暗示可以把一些私人消费报销成办公用品。', accept: { cash: 5, risk: 10, mental: -2 }, reject: { guanxi: -1, mental: 3, zili: -2 } }
+            ],
+            hr: [
+                { title: '👤 帮关系户通融', desc: '某领导打招呼，希望让他的亲戚通过面试。', accept: { cash: 3, risk: 20, mental: -3 }, reject: { guanxi: -5, risk: 5, mental: 3 } },
+                { title: '✂️ 违规裁员', desc: '领导要求你找理由辞退一名老员工。', accept: { mental: -5, risk: 10, zili: 5 }, reject: { mental: 5, risk: -5, zili: -10, guanxi: -5 } }
+            ],
+            finance: [
+                { title: '📊 做假账', desc: '领导暗示需要"调整"一下账目。', accept: { cash: 5, risk: 20, zili: 10 }, reject: { guanxi: -5, risk: -5, mental: 10 } },
+                { title: '🧾 虚开发票', desc: '同事想报销一些不合规的费用。', accept: { guanxi: 5, risk: 15, mental: -5 }, reject: { guanxi: -3, zili: -3, mental: 7 } }
+            ],
+            party: [
+                { title: '📝 材料造假', desc: '上级检查在即，领导暗示可以适当"美化"。', accept: { zili: 5, risk: 15, mental: -3 }, reject: { zili: -3, mental: 3, guanxi: -2 } },
+                { title: '💵 活动经费克扣', desc: '党建活动有结余，领导暗示可以"灵活处理"。', accept: { risk: 15, mental: -3 }, reject: { zili: -2, mental: 5 } }
+            ],
+            pm: [
+                { title: '📈 数据造假', desc: 'KPI完不成，运营建议"优化"一下数据。', accept: { zili: 10, risk: 10, mental: -5 }, reject: { zili: -5, mental: 5 } },
+                { title: '🚀 虚假上线', desc: '老板催得紧，建议先上线再慢慢修bug。', accept: { zili: 5, risk: 10, mental: -5 }, reject: { zili: -3, guanxi: -5, mental: 3 } }
+            ],
+            op: [
+                { title: '📊 刷量造假', desc: '本月KPI完不成，渠道商暗示可以刷量。', accept: { zili: 5, risk: 15, mental: -4 }, reject: { zili: -3, guanxi: -4, mental: 2 } },
+                { title: '🎁 违规活动', desc: '想做个爆款活动，但预算不够。', accept: { cash: 3, risk: 10, zili: 2 }, reject: { zili: -2, risk: -5, mental: 2 } }
+            ],
+            dev: [
+                { title: '💻 代码后门', desc: '外包公司暗示可以留后门。', accept: { risk: 15, guanxi: 3, mental: -2 }, reject: { zili: -3, mental: 5 } },
+                { title: '🔧 外包私活', desc: '朋友有个私活，想借用公司资源做。', accept: { risk: 15, zili: -2, guanxi: 3 }, reject: { guanxi: -2, mental: 10 } }
+            ]
+        };
+
+        // 通用随机事件
+        const commonRandomEvents = [
+            { title: '💸 领导借钱', desc: '领导私下找你借3万，说下个月还。', accept: { cash: -3, guanxi: 8 }, reject: { guanxi: -6 } },
+            { title: '💒 同事结婚随礼', desc: '不太熟的同事结婚，份子钱给多少？', accept: { cash: -1, guanxi: 5 }, reject: { guanxi: -4 } },
+            { title: '🏥 体检异常', desc: '体检发现脂肪肝，医生建议多运动。', accept: { cash: -2, mental: 5 }, reject: { mental: -5, risk: 5 } }
+        ];
+
+        // 岗位专属事件
+        const jobSpecificEvents = {
+            admin: [
+                {
+                    title: '📅 重要接待',
+                    desc: '下周有上级领导来检查，处长让你负责安排接待。这是表现的好机会，但搞砸了也麻烦。',
+                    effects: { zili: 10, guanxi: 8, mental: -8, cash: -0.5 }
+                },
+                {
+                    title: '🚗 公车使用',
+                    desc: '领导暗示想用公车办私事，接送孩子上下学。按规定这是违规的，但拒绝的话...',
+                    effects: { guanxi: 10, risk: 15, mental: -8 }
+                }
+            ],
+            hr: [
+                {
+                    title: '📊 绩效考核',
+                    desc: '年底绩效考核，有人找你"通融"。对方承诺事后感谢，但风险很大。',
+                    effects: { cash: 1, risk: 20, mental: -10, guanxi: -5 }
+                },
+                {
+                    title: '📋 档案问题',
+                    desc: '整理档案时发现某领导的学历有问题。要不要上报？',
+                    effects: { zili: 5, guanxi: -10, mental: -5 }
+                }
+            ],
+            finance: [
+                {
+                    title: '📈 公款投资',
+                    desc: '账上有一笔闲置资金，处长暗示可以"灵活运作"。收益可观，但风险极高。',
+                    effects: { cash: 5, risk: 25, mental: -10 }
+                },
+                {
+                    title: '📄 报销审核',
+                    desc: '领导的报销单有问题，金额虚高，发票也不太对劲。',
+                    effects: { zili: 5, guanxi: -8, mental: -5 }
+                }
+            ],
+            party: [
+                {
+                    title: '📝 写材料',
+                    desc: '党委书记的讲话稿需要你写，今晚必须交。这种材料改了十几遍是常态。',
+                    effects: { zili: 15, guanxi: 8, mental: -10 }
+                },
+                {
+                    title: '📚 学习强国',
+                    desc: '单位要求每天学习强国积分要达标，排名靠后的要通报批评。',
+                    effects: { zili: 3, guanxi: 3, mental: -3 }
+                }
+            ],
+            pm: [
+                {
+                    title: '🎯 产品上线',
+                    desc: '负责的产品要上线，但bug还没修完。技术说"问题不大"，但你心里没底。',
+                    effects: { zili: 8, risk: 12, mental: -8 }
+                },
+                {
+                    title: '📊 数据压力',
+                    desc: 'KPI完不成，运营建议"优化"一下数据。这是行业潜规则，但...',
+                    effects: { zili: 10, risk: 20, mental: -10 }
+                }
+            ],
+            op: [
+                {
+                    title: '🎯 KPI压力',
+                    desc: '本季度KPI完不成，团队面临解散。领导暗示可以用"非常手段"。',
+                    effects: { zili: 10, guanxi: 5, mental: -10, risk: 8 }
+                },
+                {
+                    title: '🎁 活动预算',
+                    desc: '活动策划预算被砍了一半，但领导要求效果不能打折。',
+                    effects: { zili: 8, mental: -8, cash: -0.3 }
+                }
+            ],
+            dev: [
+                {
+                    title: '💻 技术选型',
+                    desc: '新项目技术选型，领导坚持用十年前的老技术，说"稳定最重要"。',
+                    effects: { zili: 5, guanxi: -3, mental: -5 }
+                },
+                {
+                    title: '🐛 线上故障',
+                    desc: '系统出故障，用户投诉不断。领导问责，开发和运维互相甩锅。',
+                    effects: { zili: 5, guanxi: -5, mental: -10, risk: 5 }
+                }
+            ]
+        };
+
+        // 行动库 - 消耗行动点（V1.0.3 调整）
+        const actions = [
+            {
+                id: 'work_hard',
+                icon: '💪',
+                title: '努力工作',
+                desc: '加班完成手头任务，但过度表现会引起同事反感',
+                cost: 1,
+                effects: { zili: 4, guanxi: -2, mental: -6, risk: -2 },
+                note: '⚠️ 太卷会被孤立'
+            },
+            {
+                id: 'socialize',
+                icon: '🍻',
+                title: '科室聚餐',
+                desc: '请同事吃饭增进感情，但频繁请客钱包受不了',
+                cost: 1,
+                effects: { guanxi: 5, cash: -0.8, mental: 2, zili: -4 },
+                note: '💸 社交成本高昂'
+            },
+            {
+                id: 'report',
+                icon: '📊',
+                title: '向上汇报',
+                desc: '向领导汇报工作，但汇报太多会被认为不务实',
+                cost: 1,
+                effects: { guanxi: 6, zili: 2, mental: -4, risk: 2 },
+                note: '🎯 领导喜欢但同事烦'
+            },
+            {
+                id: 'study',
+                icon: '📚',
+                title: '学习提升',
+                desc: '报名课程提升技能，但学习期间影响工作产出',
+                cost: 1,
+                effects: { zili: 6, cash: -0.5, mental: -3, guanxi: -1 },
+                note: '📖 长期收益但短期吃亏'
+            },
+            {
+                id: 'rest',
+                icon: '😴',
+                title: '摸鱼休息',
+                desc: '适当放松调整心态，但摸鱼太多会被边缘化',
+                cost: 1,
+                effects: { mental: 8, zili: -4, guanxi: -2, risk: 2 },
+                note: '😌 舒服但影响发展'
+            },
+            {
+                id: 'side_job',
+                icon: '💰',
+                title: '搞副业',
+                desc: '接私活赚外快，但被发现就完了',
+                cost: 1,
+                effects: { cash: 1.5, mental: -3, risk: 8, zili: -2 },
+                note: '🔥 高风险高回报'
+            }
+        ];
+
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyCOSr5G5KXXPNET9XTcCdiLS2l1SX5kAkE",
+            authDomain: "guoqi-simulator.firebaseapp.com",
+            databaseURL: "https://guoqi-simulator-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "guoqi-simulator",
+            storageBucket: "guoqi-simulator.firebasestorage.app",
+            messagingSenderId: "5262977209",
+            appId: "1:5262977209:web:862dc6a54216dd1387d368"
+        };
+
+        // 初始化 Firebase（带错误处理）
+        let database = null;
+        let firebaseEnabled = false;
+
+        // 等待Firebase SDK加载完成后初始化
+        function initFirebase() {
+            console.log('开始初始化Firebase...');
+            console.log('firebase对象存在:', typeof firebase !== 'undefined');
+            console.log('firebase.apps:', firebase?.apps);
+
+            try {
+                if (typeof firebase !== 'undefined') {
+                    // 检查是否已经初始化
+                    if (!firebase.apps.length) {
+                        console.log('正在初始化Firebase应用...');
+                        firebase.initializeApp(firebaseConfig);
+                        console.log('Firebase应用初始化完成');
+                    } else {
+                        console.log('Firebase应用已经初始化，跳过');
+                    }
+
+                    database = firebase.database();
+                    firebaseEnabled = true;
+                    console.log('Firebase 初始化成功！Database对象:', database);
+                } else {
+                    console.warn('Firebase SDK 未加载，使用本地存储');
+                }
+            } catch (e) {
+                console.error('Firebase 初始化失败:', e);
+                console.error('错误详情:', e.message, e.stack);
+            }
+        }
+
+        // 测试Firebase连接
+        function testFirebaseConnection() {
+            console.log('测试Firebase连接...');
+            if (!firebaseEnabled || !database) {
+                console.error('Firebase未初始化');
+                return false;
+            }
+
+            // 测试写入权限
+            const testRef = database.ref('test_connection');
+            testRef.set({ timestamp: Date.now() })
+                .then(() => {
+                    console.log('Firebase连接测试成功！');
+                    testRef.remove(); // 清理测试数据
+                    return true;
+                })
+                .catch((error) => {
+                    console.error('Firebase连接测试失败:', error);
+                    return false;
+                });
+        }
+
+        // 页面加载完成后初始化Firebase
+        window.addEventListener('DOMContentLoaded', function() {
+            // 立即初始化
+            initFirebase();
+
+            // 3秒后测试连接
+            setTimeout(() => {
+                if (firebaseEnabled && database) {
+                    testFirebaseConnection();
+                }
+            }, 3000);
+        });
+
+        // 生成或获取用户ID
+        function getUserId() {
+            let userId = localStorage.getItem('guoqi_user_id');
+            if (!userId) {
+                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('guoqi_user_id', userId);
+            }
+            return userId;
+        }
+
+        // 本地保存游戏
+        function saveGameLocal() {
+            try {
+                const saveData = {
+                    ...gameState,
+                    lastSaveTime: Date.now(),
+                    saveType: 'local'
+                };
+                localStorage.setItem('guoqi_save_game', JSON.stringify(saveData));
+                console.log('本地保存成功');
+                return true;
+            } catch (error) {
+                console.error('本地保存失败:', error);
+                return false;
+            }
+        }
+
+        // 本地加载游戏
+        function loadGameLocal() {
+            try {
+                const savedDataStr = localStorage.getItem('guoqi_save_game');
+                if (savedDataStr) {
+                    const savedData = JSON.parse(savedDataStr);
+                    gameState = savedData;
+                    updateUI();
+                    renderActions();
+                    console.log('本地加载成功');
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('本地加载失败:', error);
+                return false;
+            }
+        }
+
+        // 统一的进入游戏界面函数
+        function enterGameScreen() {
+            hideAllPages();
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+        }
+
+        // 云端保存游戏（V1.3.0：启用Firebase云端存档）
+        function saveGameCloud() {
+            console.log('保存功能被调用，Firebase状态:', firebaseEnabled, 'Database状态:', !!database);
+            console.log('Firebase SDK状态:', typeof firebase !== 'undefined' ? '已加载' : '未加载');
+
+            // 显示保存中提示
+            showModal({
+                label: '💾 正在保存',
+                title: '保存进度中...',
+                content: '正在将游戏进度保存...',
+                effects: {},
+                btnText: '取消',
+                onConfirm: () => {}
+            });
+
+            // 首先尝试云端保存
+            if (firebaseEnabled && database) {
+                const userId = getUserId();
+                const saveData = {
+                    ...gameState,
+                    lastSaveTime: Date.now()
+                };
+
+                // 添加超时处理
+                const savePromise = database.ref(`users/${userId}/gameState`).set(saveData);
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('保存超时，请检查网络连接')), 10000);
+                });
+
+                // 等待保存完成或超时
+                Promise.race([savePromise, timeoutPromise])
+                    .then(() => {
+                        console.log('云端保存成功！');
+                        closeModal();
+                        showModal({
+                            label: '✅ 保存成功',
+                            title: '游戏已保存（云端）',
+                            content: '游戏进度已成功保存到云端！\n\n刷新页面后点击"加载"按钮即可恢复进度。',
+                            effects: {},
+                            btnText: '知道了',
+                            onConfirm: () => {}
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('云端保存失败:', error);
+                        console.log('尝试本地保存...');
+
+                        // 如果云端保存失败，尝试本地保存
+                        if (saveGameLocal()) {
+                            closeModal();
+                            showModal({
+                                label: '⚠️ 保存成功（本地）',
+                                title: '保存完成',
+                                content: '云端保存失败，已保存到本地浏览器。\n\n请注意：清除浏览器缓存会丢失进度！',
+                                effects: {},
+                                btnText: '知道了',
+                                onConfirm: () => {}
+                            });
+                        } else {
+                            closeModal();
+                            // 分析具体错误类型
+                            let errorMessage = '保存失败，请稍后重试。';
+                            if (error.message.includes('permission-denied')) {
+                                errorMessage = '保存失败：服务器权限未配置。已保存到本地。';
+                            } else if (error.message.includes('timeout')) {
+                                errorMessage = '保存超时：网络连接不稳定。已保存到本地。';
+                            } else if (error.message.includes('network')) {
+                                errorMessage = '网络错误：无法连接到服务器。已保存到本地。';
+                            }
+
+                            showModal({
+                                label: '❌ 保存失败',
+                                title: '保存出错',
+                                content: errorMessage + '\n\n错误代码：' + error.code + '\n\n建议：检查网络连接后重试。',
+                                effects: {},
+                                btnText: '知道了',
+                                onConfirm: () => {}
+                            });
+                        }
+                    });
+            } else {
+                // 直接本地保存
+                if (saveGameLocal()) {
+                    closeModal();
+                    showModal({
+                        label: '✅ 保存成功（本地）',
+                        title: '保存完成',
+                        content: '游戏进度已保存到本地浏览器！\n\n注意：清除浏览器缓存会丢失进度！',
+                        effects: {},
+                        btnText: '知道了',
+                        onConfirm: () => {}
+                    });
+                } else {
+                    closeModal();
+                    showModal({
+                        label: '❌ 保存失败',
+                        title: '保存出错',
+                        content: '保存失败！请重试或刷新页面。',
+                        effects: {},
+                        btnText: '知道了',
+                        onConfirm: () => {}
+                    });
+                }
+            }
+
+            const userId = getUserId();
+            const saveData = {
+                ...gameState,
+                lastSaveTime: Date.now()
+            };
+
+            // 显示保存中提示
+            showModal({
+                label: '💾 正在保存',
+                title: '保存进度中...',
+                content: '正在将游戏进度上传到云端，请稍候...',
+                effects: {},
+                btnText: '取消',
+                onConfirm: () => {}
+            });
+
+            // 添加超时处理（延长到30秒）
+            const savePromise = database.ref(`users/${userId}/gameState`).set(saveData);
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('保存超时，请检查网络连接或Firebase配置')), 30000);
+            });
+
+            // 等待保存完成或超时
+            Promise.race([savePromise, timeoutPromise])
+                .then(() => {
+                    closeModal();
+                    showModal({
+                        label: '✅ 保存成功',
+                        title: '游戏已保存',
+                        content: '游戏进度已成功保存到云端！\n\n刷新页面后点击"加载"按钮即可恢复进度。',
+                        effects: {},
+                        btnText: '知道了',
+                        onConfirm: () => {}
+                    });
+                })
+                .catch((error) => {
+                    closeModal();
+                    console.error('保存失败:', error);
+
+                    // 分析具体错误类型
+                    let errorMessage = '保存失败，请稍后重试。';
+                    if (error.message.includes('permission-denied')) {
+                        errorMessage = '保存失败：服务器权限未配置。请联系开发者配置Firebase数据库规则。';
+                    } else if (error.message.includes('timeout')) {
+                        errorMessage = '保存超时：网络连接不稳定，请检查网络后重试。';
+                    } else if (error.message.includes('network')) {
+                        errorMessage = '网络错误：无法连接到服务器，请检查网络连接。';
+                    }
+
+                    showModal({
+                        label: '❌ 保存失败',
+                        title: '保存出错',
+                        content: errorMessage + '\n\n错误代码：' + error.code + '\n\n请稍后重试。',
+                        effects: {},
+                        btnText: '知道了',
+                        onConfirm: () => {}
+                    });
+                });
+        }
+
+        // 云端加载游戏（V1.3.0：启用Firebase云端存档）
+        function loadGameCloud() {
+            // 首先检查本地存档
+            const localSave = localStorage.getItem('guoqi_save_game');
+            console.log('本地存档状态:', localSave ? '存在' : '不存在');
+
+            if (!firebaseEnabled || !database) {
+                // Firebase不可用，尝试本地加载
+                if (localSave) {
+                    try {
+                        const savedData = JSON.parse(localSave);
+                        const lastSaveDate = new Date(savedData.lastSaveTime);
+                        const saveTimeStr = lastSaveDate.toLocaleString('zh-CN');
+
+                        showModal({
+                            label: '📂 发现本地存档',
+                            title: '发现本地存档',
+                            content: `发现本地存档，保存时间：\n\n${saveTimeStr}\n\n游戏进度：\n第 ${savedData.year} 年 Q${savedData.quarter}\n职级：${savedData.rank}\n财产：${(savedData.cash + savedData.annuity).toFixed(2)}万\n\n是否加载此存档？`,
+                            effects: {},
+                            btnText: '加载',
+                            onConfirm: () => {
+                                gameState = savedData;
+                                updateUI();
+                                renderActions();
+
+                                // 直接进入游戏界面
+                                enterGameScreen();
+                                closeModal();
+                            }
+                        });
+                    } catch (error) {
+                        showModal({
+                            label: '❌ 加载失败',
+                            title: '本地存档损坏',
+                            content: '本地存档已损坏，请重新开始游戏。',
+                            effects: {},
+                            btnText: '知道了',
+                            onConfirm: () => {}
+                        });
+                    }
+                } else {
+                    showModal({
+                        label: '❌ 没有存档',
+                        title: '无存档记录',
+                        content: '云端和本地都没有找到您的游戏存档。\n\n请先进行游戏并保存进度。',
+                        effects: {},
+                        btnText: '知道了',
+                        onConfirm: () => {}
+                    });
+                }
+                return;
+            }
+
+            // Firebase可用，尝试云端加载
+            const userId = getUserId();
+
+            // 显示加载中提示
+            showModal({
+                label: '📂 正在加载',
+                title: '加载进度中...',
+                content: '正在从云端加载游戏进度，请稍候...',
+                effects: {},
+                btnText: '取消',
+                onConfirm: () => {}
+            });
+
+            database.ref(`users/${userId}/gameState`).once('value')
+                .then((snapshot) => {
+                    closeModal();
+
+                    if (!snapshot.exists()) {
+                        // 云端无存档，检查本地存档
+                        if (localSave) {
+                            try {
+                                const savedData = JSON.parse(localSave);
+                                const lastSaveDate = new Date(savedData.lastSaveTime);
+                                const saveTimeStr = lastSaveDate.toLocaleString('zh-CN');
+
+                                showModal({
+                                    label: '📂 发现本地存档',
+                                    title: '发现本地存档',
+                                    content: `云端无存档，发现本地存档，保存时间：\n\n${saveTimeStr}\n\n游戏进度：\n第 ${savedData.year} 年 Q${savedData.quarter}\n职级：${savedData.rank}\n财产：${(savedData.cash + savedData.annuity).toFixed(2)}万\n\n是否加载此存档？`,
+                                    effects: {},
+                                    btnText: '加载',
+                                    onConfirm: () => {
+                                        gameState = savedData;
+                                        updateUI();
+                                        renderActions();
+
+                                        showModal({
+                                            label: '✅ 加载成功',
+                                            title: '游戏已加载',
+                                            content: '游戏进度已成功恢复！',
+                                            effects: {},
+                                            btnText: '开始游戏',
+                                            onConfirm: () => closeModal()
+                                        });
+                                    }
+                                });
+                            } catch (error) {
+                                showModal({
+                                    label: '❌ 没有存档',
+                                    title: '无存档记录',
+                                    content: '云端和本地都没有找到您的游戏存档。\n\n请先进行游戏并保存进度。',
+                                    effects: {},
+                                    btnText: '知道了',
+                                    onConfirm: () => {}
+                                });
+                            }
+                        } else {
+                            showModal({
+                                label: '❌ 没有存档',
+                                title: '无存档记录',
+                                content: '云端和本地都没有找到您的游戏存档。\n\n请先进行游戏并保存进度。',
+                                effects: {},
+                                btnText: '知道了',
+                                onConfirm: () => {}
+                            });
+                        }
+                        return;
+                    }
+
+                    const savedData = snapshot.val();
+                    const lastSaveDate = new Date(savedData.lastSaveTime);
+                    const saveTimeStr = lastSaveDate.toLocaleString('zh-CN');
+
+                    // 确认加载弹窗
+                    showModal({
+                        label: '📂 发现云端存档',
+                        title: '发现云端存档',
+                        content: `发现云端存档，保存时间：\n\n${saveTimeStr}\n\n游戏进度：\n第 ${savedData.year} 年 Q${savedData.quarter}\n职级：${savedData.rank}\n财产：${(savedData.cash + savedData.annuity).toFixed(2)}万\n\n是否加载此存档？`,
+                        effects: {},
+                        btnText: '加载',
+                        onConfirm: () => {
+                            // 恢复游戏状态
+                            gameState = savedData;
+                            updateUI();
+                            renderActions();
+
+                            // 直接进入游戏界面，不显示入职弹窗
+                            enterGameScreen();
+
+                            closeModal();
+                        }
+                    });
+                })
+                .catch((error) => {
+                    closeModal();
+                    console.error('云端加载失败:', error);
+
+                    // 云端加载失败，尝试本地存档
+                    if (localSave) {
+                        try {
+                            const savedData = JSON.parse(localSave);
+                            const lastSaveDate = new Date(savedData.lastSaveTime);
+                            const saveTimeStr = lastSaveDate.toLocaleString('zh-CN');
+
+                            showModal({
+                                label: '📂 发现本地存档',
+                                title: '本地存档可用',
+                                content: `云端加载失败，发现本地存档：\n\n${saveTimeStr}\n\n是否加载本地存档？`,
+                                effects: {},
+                                btnText: '加载',
+                                onConfirm: () => {
+                                    gameState = savedData;
+                                    updateUI();
+                                    renderActions();
+
+                                    showModal({
+                                        label: '✅ 加载成功',
+                                        title: '游戏已加载',
+                                        content: '游戏进度已成功恢复（本地存档）！',
+                                        effects: {},
+                                        btnText: '开始游戏',
+                                        onConfirm: () => closeModal()
+                                    });
+                                }
+                            });
+                        } catch (e) {
+                            showModal({
+                                label: '❌ 加载失败',
+                                title: '加载出错',
+                                content: '云端和本地加载都失败了。\n\n错误：' + error.message,
+                                effects: {},
+                                btnText: '知道了',
+                                onConfirm: () => {}
+                            });
+                        }
+                    } else {
+                        showModal({
+                            label: '❌ 加载失败',
+                            title: '加载出错',
+                            content: '加载游戏进度时出错：\n\n' + error.message + '\n\n请稍后重试。',
+                            effects: {},
+                            btnText: '知道了',
+                            onConfirm: () => {}
+                        });
+                    }
+                });
+        }
+
+        // 谐音梗名字库
+        const funnyNames = [
+            { name: '布翔甘', meaning: '不想干' },
+            { name: '费晶丽', meaning: '费精力' },
+            { name: '吴薪', meaning: '无薪' },
+            { name: '劳思', meaning: '劳死' },
+            { name: '贾班', meaning: '加班' },
+            { name: '梅前', meaning: '没钱' },
+            { name: '秦穷', meaning: '穷' },
+            { name: '吴涨薪', meaning: '无涨薪' },
+            { name: '何必', meaning: '何必认真' },
+            { name: '难升', meaning: '难升职' },
+            { name: '皮背', meaning: '背锅' },
+            { name: '郝烦', meaning: '好烦' },
+            { name: '甄不搓', meaning: '真不错（反讽）' },
+            { name: '余快', meaning: '愉快摸鱼' },
+            { name: '马尚', meaning: '马上（马上就好=永远不好）' }
+        ];
+
+        // 页面切换函数
+        function hideAllPages() {
+            ['start-page', 'name-page', 'rules-page', 'job-page', 'edu-page', 'game-screen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+        }
+
+        function showNamePage() {
+            // 先显示游戏规则弹窗
+            showStartGameRules();
+        }
+
+        // 开始游戏时的规则弹窗（按钮文字不同）
+        function showStartGameRules() {
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-label').textContent = '📋 游戏规则';
+            document.getElementById('modal-title').textContent = '游戏说明';
+            
+            const rulesHTML = `
+<div class="space-y-4 text-sm text-slate-600">
+    <div>
+        <div class="font-bold text-blue-800 mb-1">🎯 胜利条件（满足其一）</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>• 晋升至处长级别</li>
+            <li>• 名下财产（现金+年金）达到1000万</li>
+            <li>• 平安工作到60岁退休</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-red-800 mb-1">💀 失败条件（满足其一）</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>• 心态值降为0（崩溃离职）</li>
+            <li>• 35岁仍未晋升正科（中年危机）</li>
+            <li>• 风险值达到100%（东窗事发）</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-slate-800 mb-1">📊 核心属性</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>💰 现金 - 工资收入、理财、副业</li>
+            <li>🤝 人脉 - 同事关系、领导好感</li>
+            <li>📄 资历 - 工作经验、政治资本</li>
+            <li>😊 心态 - 心理健康、工作满意度</li>
+            <li>⚠️ 风险 - 违规操作、灰色地带</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-amber-800 mb-1">🏆 晋升规则</div>
+        <ul class="space-y-0.5 ml-4 text-xs">
+            <li>• 科员 → 副科：资历≥40，人脉≥30</li>
+            <li>• 副科 → 正科：资历≥80，人脉≥60，年龄≤35</li>
+            <li>• 正科 → 主任：资历≥120，人脉≥90</li>
+            <li>• 主任 → 高级主任：资历≥180，人脉≥140，入职≥6年</li>
+            <li>• 高级主任 → 副处：资历≥250，人脉≥200，入职≥10年</li>
+            <li>• 副处 → 正处：资历≥350，人脉≥280，入职≥15年</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-cyan-800 mb-1">📅 年度周期</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>• 一年分为4个季度（Q1-Q4）</li>
+            <li>• 每季度有3个行动点</li>
+            <li>• 每年Q1年龄+1</li>
+            <li>• 每年Q4结束进行年度考核</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-indigo-800 mb-1">💰 经济系统</div>
+        <div class="ml-4">
+            <div class="font-medium mt-1">📥 季度收支</div>
+            <ul class="space-y-0.5 ml-2 text-xs">
+                <li>• 收入：Q1月工资发80%，剩余看公司营收</li>
+                <li>• 支出：每月扣除生活成本（月薪×0.3）</li>
+                <li>• 净收入：实际到账 = 月薪×0.7</li>
+            </ul>
+            <div class="font-medium mt-1">📈 企业年金（V1.2.10）</div>
+            <ul class="space-y-0.5 ml-2 text-xs">
+                <li>• 第1年Q2后触发加入邀请</li>
+                <li>• 第1-10年：每月扣除月薪5%</li>
+                <li>• 第11年起：每年扣除比例+2%（最高30%）</li>
+                <li>• 计息等待期：缴纳满5年（第6年Q4起年度计息3%）</li>
+                <li>• 取出节点：第6、11、16年...的Q4</li>
+                <li>• 取出比例：100%、70%、50%、30%四档</li>
+                <li>• 全额取出后账户冻结，5年后可重新加入</li>
+            </ul>
+        </div>
+    </div>
+</div>`;
+            
+            document.getElementById('modal-content').innerHTML = rulesHTML;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            const btn = document.getElementById('modal-btn');
+            btn.textContent = '我太想进步了';
+            // 移除内联onclick，使用addEventListener
+            btn.removeAttribute('onclick');
+            btn.onclick = function() {
+                closeModal();
+                // 关闭弹窗后显示入职档案页面
+                hideAllPages();
+                document.getElementById('name-page').classList.remove('hidden');
+                // 默认随机一个名字
+                randomName();
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        function showRulesPage() {
+            hideAllPages();
+            document.getElementById('rules-page').classList.remove('hidden');
+        }
+
+        function showJobSelect() {
+            hideAllPages();
+            document.getElementById('job-page').classList.remove('hidden');
+        }
+
+        function showEduSelect() {
+            hideAllPages();
+            document.getElementById('edu-page').classList.remove('hidden');
+        }
+
+        function showEduPage() {
+            hideAllPages();
+            document.getElementById('edu-page').classList.remove('hidden');
+
+            // 更新学历解锁状态
+            updateEduUnlockStatus();
+        }
+
+        // 更新学历解锁状态
+        function updateEduUnlockStatus() {
+            // 读取存档中的通关次数
+            let playthroughs = parseInt(localStorage.getItem('guoqi_playthroughs') || '0');
+
+            // 更新显示
+            document.getElementById('playthrough-count').textContent = playthroughs;
+
+            const eduProgress = ['本科', '硕士', '博士'];
+
+            for (let i = 0; i < 3; i++) {
+                const edu = eduProgress[i];
+                const btn = document.querySelector(`.edu-btn[data-edu="${edu}"]`);
+                const statusEl = document.getElementById(`edu-${edu === '硕士' ? 'master' : edu === '博士' ? 'phd' : ''}-status`);
+
+                if (i <= playthroughs) {
+                    // 已解锁
+                    btn.classList.remove('border-slate-200', 'opacity-50', 'cursor-not-allowed');
+                    btn.classList.add('border-blue-500', 'bg-blue-50');
+                    btn.removeAttribute('disabled');
+                    statusEl.textContent = '✅ 已解锁';
+                    statusEl.className = 'text-xs text-green-600';
+                } else {
+                    // 未解锁
+                    btn.classList.remove('border-blue-500', 'bg-blue-50');
+                    btn.classList.add('border-slate-200', 'opacity-50', 'cursor-not-allowed');
+                    btn.setAttribute('disabled', 'true');
+                    const lockCount = (i + 1) - playthroughs;
+                    statusEl.textContent = `🔒 还需通关${lockCount}次解锁`;
+                    statusEl.className = 'text-xs text-slate-400';
+                }
+            }
+
+            // 更新进度显示
+            const currentProgress = playthroughs >= 2 ? '博士' : playthroughs >= 1 ? '硕士' : '本科';
+            document.getElementById('edu-progress').textContent = currentProgress;
+        }
+
+        // 随机生成名字
+        function randomName() {
+            const randomIndex = Math.floor(Math.random() * funnyNames.length);
+            const nameObj = funnyNames[randomIndex];
+            document.getElementById('player-name').value = nameObj.name;
+        }
+
+        // 选择岗位
+        function selectJob(job) {
+            selectedJob = job;
+            document.querySelectorAll('.job-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'bg-blue-50');
+                btn.classList.add('border-slate-200');
+            });
+            document.querySelector(`[data-job="${job}"]`).classList.remove('border-slate-200');
+            document.querySelector(`[data-job="${job}"]`).classList.add('border-blue-500', 'bg-blue-50');
+            
+            const btn = document.getElementById('job-next');
+            btn.disabled = false;
+            btn.classList.remove('bg-slate-300', 'text-slate-500');
+            btn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.textContent = '开始游戏 →';
+        }
+
+        // 选择学历
+        function selectEdu(edu) {
+            // 读取当前通关次数
+            let playthroughs = JSON.parse(localStorage.getItem('guoqi_playthroughs') || '0');
+            const currentLevel = parseInt(playthroughs);
+
+            // 检查该学历是否解锁
+            const unlockLevels = {
+                '硕士': 1,
+                '博士': 2
+            };
+            const requiredLevel = unlockLevels[edu];
+            const isUnlocked = currentLevel >= requiredLevel;
+
+            if (!isUnlocked) {
+                // 学历未解锁，禁止选择并提示
+                console.log('学历未解锁:', edu, '当前等级:', currentLevel, '需要等级:', requiredLevel);
+                // 不设置selectedEdu，避免进入岗位页面时能绕过
+                return;
+            }
+
+            selectedEdu = edu;
+            document.querySelectorAll('.edu-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'bg-blue-50');
+                btn.classList.add('border-slate-200');
+            });
+            document.querySelector(`[data-edu="${edu}"]`).classList.remove('border-slate-200');
+            document.querySelector(`[data-edu="${edu}"]`).classList.add('border-blue-500', 'bg-blue-50');
+        }
+
+        // 显示岗位选择页面
+        function showJobPage() {
+            hideAllPages();
+            document.getElementById('job-page').classList.remove('hidden');
+
+            // 根据选择的学历解锁岗位
+            // 本科只能选基础岗位，硕士和博士可以选所有岗位
+            const highEduJobs = ['pm', 'dev', 'procurement', 'legal']; // 产品、开发、采购、法务
+
+            if (selectedEdu === '本科') {
+                // 本科只能选：行政、人力、财务、党建、运营、销售
+                // 本科不能选：产品、开发、采购、法务
+                highEduJobs.forEach(job => {
+                    const btn = document.querySelector(`[data-job="${job}"]`);
+                    if (btn) {
+                        // 完全禁用高学历岗位
+                        btn.disabled = true;
+                        btn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+                        btn.classList.remove('border-slate-200', 'border-blue-500');
+
+                        // 添加"🔒 需要硕士"提示标签（如果还没有）
+                        if (!btn.querySelector('.job-lock-hint')) {
+                            const hint = document.createElement('div');
+                            hint.className = 'job-lock-hint absolute top-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded';
+                            hint.textContent = '🔒 需要硕士';
+                            btn.appendChild(hint);
+                        } else {
+                            // 显示已有的提示标签
+                            btn.querySelector('.job-lock-hint').style.display = 'block';
+                        }
+                    }
+                });
+            } else {
+                // 硕士或博士可以选择所有岗位
+                highEduJobs.forEach(job => {
+                    const btn = document.querySelector(`[data-job="${job}"]`);
+                    if (btn) {
+                        // 启用所有岗位
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+                        btn.classList.add('border-slate-200', 'border-blue-500');
+
+                        // 隐藏"🔒 需要硕士"提示标签
+                        const hint = btn.querySelector('.job-lock-hint');
+                        if (hint) {
+                            hint.style.display = 'none';
+                        }
+                    }
+                });
+            }
+        }
+
+        // 开始游戏
+        function startNewGame() {
+            const playerName = document.getElementById('player-name').value.trim() || '布翔甘';
+            // 读取存档中的通关次数
+            let playthroughs = JSON.parse(localStorage.getItem('guoqi_playthroughs') || '0');
+            const unlockedDegrees = parseInt(playthroughs); // 0=本科, 1=硕士, 2=博士
+
+            // 验证学历和岗位是否匹配
+            const config = eduConfig[selectedEdu];
+            const currentEduLevel = parseInt(playthroughs);
+
+            // 检查选择的学历是否解锁
+            if (currentEduLevel < (selectedEdu === '硕士' ? 1 : selectedEdu === '博士' ? 2 : 0)) {
+                console.log('学历未解锁:', selectedEdu, '当前通关次数:', currentEduLevel);
+                alert('该学历尚未解锁！请先完成更多通关来解锁更高难度。');
+                return; // 阻止开始游戏
+            }
+
+            // 检查岗位按钮是否被禁用（根据当前选择的学历）
+            const jobBtn = document.querySelector(`[data-job="${selectedJob}"]`);
+            if (jobBtn && jobBtn.disabled) {
+                console.log('岗位按钮被禁用:', selectedJob, '当前学历:', selectedEdu);
+                alert('该岗位需要硕士或博士学历才能选择！请选择更高的学历。');
+                return; // 阻止开始游戏
+            }
+
+            // 检查选择的岗位是否与学历匹配（二次保险）
+            const masterOnlyJobs = ['pm', 'dev', 'procurement', 'legal'];
+            const isMasterOnlyJob = masterOnlyJobs.includes(selectedJob);
+
+            if (selectedEdu === '本科' && isMasterOnlyJob) {
+                console.log('学历和岗位不匹配:', selectedEdu, selectedJob);
+                alert('该岗位需要硕士或博士学历才能选择！请选择更高的学历。');
+                return; // 阻止开始游戏
+            }
+
+            gameState = {
+                name: playerName, age: config.age, year: 1, quarter: 1, totalQuarters: 1,
+                rank: '科员', rankLevel: 1, job: selectedJob, jobName: jobs[selectedJob].name,
+                cash: config.cash, guanxi: config.guanxi, zili: config.zili,
+                mental: config.mental, risk: config.risk,
+                actionPoints: 3, salary: 0.67, history: [],
+                // 年金系统（V1.2.9迭代版）
+                annuity: 0,              // 年金账户余额
+                annuityJoined: false,    // 是否加入年金
+                annuityWithdrawn: false, // 是否已取出（全额）
+                annuityFrozen: false,    // 账户是否冻结（全额取出后）
+                annuityRejoinEligible: false, // 是否可重新加入
+                annuityRejoinYear: 0,    // 可重新加入的年份
+                annuityLastWithdrawYear: 0, // 上次取出的年份
+                annuityYearStartBalance: 0, // 年初年金余额（用于年度计息）
+                annuityJoinedYear: 0,    // 加入年金的年份
+                annuityJoinedQuarter: 0,  // 加入年金的季度
+                // 领导借钱冷却期
+                lastLeaderBorrowQuarter: -12, // 上次领导借钱季度（初始值为-12，表示3年前）
+                // 通关次数系统（V1.3.5）
+                playthroughCount: parseInt(playthroughs)
+            };
+
+            hideAllPages();
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+
+            // 显示入职事件
+            setTimeout(() => {
+                showModal({
+                    label: 'SYSTEM NOTIFICATION',
+                    title: '入职第一天',
+                    content: `你通过校招，正式成为某国企${gameState.jobName}岗位的一名科员。\n\n月薪0.67万，办公室在12楼。祝你好运！`,
+                    effects: { zili: 5, guanxi: 5 },
+                    btnText: '开始工作',
+                    onConfirm: () => {
+                        applyEffects({ zili: 5, guanxi: 5 });
+                        updateUI();
+                        renderActions();
+                    }
+                });
+            }, 500);
+        }
+
+        // V1.2.0 显示随机事件弹窗（双选择版本）
+        function showRandomEvent() {
+            if (!randomEventSystem.shouldTrigger()) return;
+            
+            const jobEvents = jobRandomEvents[gameState.job] || [];
+            let allEvents = [...jobEvents, ...commonRandomEvents];
+            
+            // 检查领导借钱是否在冷却期（3年=12个季度）
+            const quartersSinceLastBorrow = gameState.totalQuarters - gameState.lastLeaderBorrowQuarter;
+            if (quartersSinceLastBorrow < 12) {
+                // 在冷却期内，过滤掉领导借钱事件
+                allEvents = allEvents.filter(e => e.title !== '💸 领导借钱');
+            }
+            
+            // 如果过滤后没有事件，直接返回
+            if (allEvents.length === 0) return;
+            
+            const event = allEvents[Math.floor(Math.random() * allEvents.length)];
+            
+            // 如果是领导借钱事件，记录当前季度
+            if (event.title === '💸 领导借钱') {
+                gameState.lastLeaderBorrowQuarter = gameState.totalQuarters;
+            }
+            
+            showEventChoiceModal(event);
+        }
+        
+        // 显示事件选择弹窗
+        function showEventChoiceModal(event) {
+            const overlay = document.getElementById('modal-overlay');
+            
+            // 阻止点击遮罩关闭弹窗
+            overlay.onclick = function(e) {
+                if (e.target === overlay) {
+                    // 点击遮罩时不做任何事，阻止关闭
+                    return;
+                }
+            };
+            
+            document.getElementById('modal-label').textContent = '🎲 随机事件';
+            document.getElementById('modal-label').className = 'text-xs text-purple-400 uppercase tracking-wider mb-1';
+            document.getElementById('modal-title').textContent = event.title;
+            
+            // 构建效果文本
+            const names = { cash: '💰现金', guanxi: '🤝人脉', zili: '📄资历', mental: '😊心态', risk: '⚠️风险' };
+            
+            let acceptText = '';
+            for (let key in event.accept) {
+                const val = event.accept[key];
+                const sign = val > 0 ? '+' : '';
+                acceptText += `${names[key]} ${sign}${val} `;
+            }
+            
+            let rejectText = '';
+            for (let key in event.reject) {
+                const val = event.reject[key];
+                const sign = val > 0 ? '+' : '';
+                rejectText += `${names[key]} ${sign}${val} `;
+            }
+            
+            const contentHTML = `
+                <p class="mb-4">${event.desc}</p>
+                <div class="bg-green-50 rounded-xl p-3 mb-3 border border-green-200">
+                    <div class="font-bold text-green-700 mb-1">✅ 接受</div>
+                    <div class="text-sm text-green-600">${acceptText || '无变化'}</div>
+                </div>
+                <div class="bg-red-50 rounded-xl p-3 border border-red-200">
+                    <div class="font-bold text-red-700 mb-1">❌ 不接受</div>
+                    <div class="text-sm text-red-600">${rejectText || '无变化'}</div>
+                </div>
+            `;
+            
+            document.getElementById('modal-content').innerHTML = contentHTML;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            // 隐藏默认按钮
+            const modalBtn = document.getElementById('modal-btn');
+            modalBtn.classList.add('hidden');
+            
+            // 移除已存在的按钮容器（如果有）
+            const existingContainer = document.getElementById('event-btn-container');
+            if (existingContainer) {
+                existingContainer.remove();
+            }
+            
+            // 创建按钮容器
+            const btnContainer = document.createElement('div');
+            btnContainer.id = 'event-btn-container';
+            btnContainer.className = 'grid grid-cols-2 gap-3 mt-4';
+            btnContainer.innerHTML = `
+                <button id="btn-accept" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition">接受</button>
+                <button id="btn-reject" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition">不接受</button>
+            `;
+            modalBtn.parentNode.insertBefore(btnContainer, modalBtn);
+            
+            // 绑定按钮事件
+            document.getElementById('btn-accept').onclick = () => {
+                applyEffects(event.accept);
+                btnContainer.remove();
+                modalBtn.classList.remove('hidden');
+                // 恢复遮罩点击行为
+                overlay.onclick = null;
+                closeModal();
+                updateUI();
+                renderActions(); // 重新渲染行动按钮
+
+                // 检查行动点是否用完，如果用完则进入季度结算
+                if (gameState.actionPoints <= 0) {
+                    setTimeout(() => {
+                        quarterSettlement();
+                    }, 100);
+                }
+            };
+
+            document.getElementById('btn-reject').onclick = () => {
+                applyEffects(event.reject);
+                btnContainer.remove();
+                modalBtn.classList.remove('hidden');
+                // 恢复遮罩点击行为
+                overlay.onclick = null;
+                closeModal();
+                updateUI();
+                renderActions(); // 重新渲染行动按钮
+
+                // 检查行动点是否用完，如果用完则进入季度结算
+                if (gameState.actionPoints <= 0) {
+                    setTimeout(() => {
+                        quarterSettlement();
+                    }, 100);
+                }
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 渲染行动按钮
+        function renderActions() {
+            const area = document.getElementById('action-area');
+            area.innerHTML = '';
+            
+            const jobBonus = jobs[gameState.job].bonus || {};
+            const names = { cash: '💰现金', guanxi: '🤝人脉', zili: '📄资历', mental: '😊心态', risk: '⚠️风险' };
+            
+            actions.forEach(action => {
+                // 计算显示效果
+                let effectsText = '';
+                for (let key in action.effects) {
+                    let value = action.effects[key];
+                    
+                    // 应用岗位加成
+                    if (key === 'guanxi' && value > 0 && jobBonus.guanxiGain) {
+                        value = Math.round(value * (1 + jobBonus.guanxiGain));
+                    }
+                    if (key === 'cash' && value > 0 && jobBonus.cashGain) {
+                        value = Math.round(value * (1 + jobBonus.cashGain) * 10) / 10;
+                    }
+                    if (key === 'zili' && value > 0 && jobBonus.ziliGain) {
+                        value = Math.round(value * (1 + jobBonus.ziliGain));
+                    }
+                    if (key === 'mental' && value > 0 && jobBonus.mentalGain) {
+                        value = Math.round(value * (1 + jobBonus.mentalGain));
+                    }
+                    if (key === 'mental' && value < 0 && jobBonus.mentalCost) {
+                        value = Math.round(value * (1 + jobBonus.mentalCost));
+                    }
+                    
+                    const sign = value > 0 ? '+' : '';
+                    // 风险特殊处理：减少=安全(绿色)，增加=危险(红色)
+                    let colorClass;
+                    if (key === 'risk') {
+                        colorClass = value < 0 ? 'text-green-600' : 'text-red-500';
+                    } else {
+                        colorClass = value > 0 ? 'text-green-600' : 'text-red-500';
+                    }
+                    effectsText += `<span class="${colorClass} text-xs mr-2">${names[key]} ${sign}${value}</span>`;
+                }
+                
+                const btn = document.createElement('button');
+                btn.className = 'w-full bg-white hover:bg-slate-50 border border-slate-200 rounded-xl p-4 text-left transition flex items-center gap-4';
+                // V1.2.12：使用action id来避免闭包问题
+                btn.onclick = () => doAction(actions.find(a => a.id === action.id));
+                btn.innerHTML = `
+                    <div class="text-3xl">${action.icon}</div>
+                    <div class="flex-1">
+                        <div class="font-bold text-slate-800">${action.title}</div>
+                        <div class="text-sm text-slate-500">${action.desc}</div>
+                        <div class="mt-1">${effectsText}</div>
+                        <div class="text-xs text-amber-600 mt-1">${action.note}</div>
+                    </div>
+                `;
+                area.appendChild(btn);
+            });
+        }
+
+        // 执行行动（V1.2.12：修复点击无反应bug，增加参数校验）
+        function doAction(action) {
+            console.log('doAction called:', action);
+            console.log('Before - ActionPoints:', gameState.actionPoints, 'Cost:', action.cost);
+
+            // 参数校验
+            if (!action || typeof action.cost !== 'number') {
+                console.error('Invalid action:', action);
+                quarterSettlement();
+                return;
+            }
+
+            if (gameState.actionPoints < action.cost) {
+                console.log('Action points insufficient, going to settlement');
+                // 行动点不足，直接进入季度结算
+                quarterSettlement();
+                return;
+            }
+
+            gameState.actionPoints -= action.cost;
+            console.log('After - ActionPoints:', gameState.actionPoints);
+            
+            // 计算加成后的效果（用于显示）
+            const jobBonus = jobs[gameState.job].bonus || {};
+            const displayEffects = {};
+            for (let key in action.effects) {
+                let value = action.effects[key];
+                
+                // 应用岗位加成
+                if (key === 'guanxi' && value > 0 && jobBonus.guanxiGain) {
+                    value = Math.round(value * (1 + jobBonus.guanxiGain));
+                }
+                if (key === 'cash' && value > 0 && jobBonus.cashGain) {
+                    value = Math.round(value * (1 + jobBonus.cashGain) * 10) / 10;
+                }
+                if (key === 'zili' && value > 0 && jobBonus.ziliGain) {
+                    value = Math.round(value * (1 + jobBonus.ziliGain));
+                }
+                if (key === 'mental' && value > 0 && jobBonus.mentalGain) {
+                    value = Math.round(value * (1 + jobBonus.mentalGain));
+                }
+                if (key === 'mental' && value < 0 && jobBonus.mentalCost) {
+                    value = Math.round(value * (1 + jobBonus.mentalCost));
+                }
+                
+                displayEffects[key] = value;
+            }
+            
+            // 记录历史
+            gameState.history.push({
+                year: gameState.year,
+                quarter: gameState.quarter,
+                action: action.title,
+                effects: displayEffects
+            });
+            
+            showModal({
+                label: 'ACTION RESULT',
+                title: action.title,
+                content: `你选择了"${action.title}"。\n\n${action.desc}`,
+                effects: displayEffects,
+                btnText: '继续',
+                onConfirm: () => {
+                    console.log('Action confirmed, applying effects');
+                    applyEffects(action.effects);
+                    updateUI();
+
+                    console.log('After action - ActionPoints:', gameState.actionPoints);
+                    if (gameState.actionPoints <= 0) {
+                        console.log('Action points used up, going to quarter settlement');
+                        quarterSettlement();
+                        return;
+                    }
+
+                    renderActions(); // 重新渲染行动按钮
+                    updateUI();
+                }
+            });
+        }
+
+        // 计算年金扣除比例（V1.2.9）
+        function getAnnuityDeductionRate() {
+            if (!gameState.annuityJoined || gameState.annuityFrozen) return 0;
+            
+            // 计算已缴纳年数（从加入年份开始算）
+            const yearsJoined = gameState.year - gameState.annuityJoinedYear;
+            
+            // 第1-10年：固定5%
+            if (yearsJoined <= 10) {
+                return ANNUITY_RATE;
+            }
+
+            // 第11年起：每年+2%，最高30%
+            const extraYears = yearsJoined - 10;
+            const rate = ANNUITY_RATE + (extraYears * ANNUITY_EXTRA_RATE_PER_YEAR);
+            return Math.min(ANNUITY_MAX_RATE, rate);
+        }
+
+        // 季度结算
+        function quarterSettlement() {
+            console.log('quarterSettlement called:', 'Year:', gameState.year, 'Quarter:', gameState.quarter);
+            const income = gameState.salary * 2.4; // Q1发80%
+            const expense = gameState.salary * 0.9;
+            const netIncome = income - expense;
+            
+            gameState.cash += netIncome;
+            
+            // 处理年金扣除（V1.2.9：年度扣除比例，Q4更新）
+            let annuityMsg = '';
+            if (gameState.annuityJoined && !gameState.annuityFrozen) {
+                // 计算当前年度扣除比例
+                const currentRate = getAnnuityDeductionRate();
+                
+                // 每季度扣除（3个月）
+                const annuityDeduction = gameState.salary * currentRate * 3;
+                gameState.cash -= annuityDeduction;
+                gameState.annuity += annuityDeduction;
+                
+                annuityMsg = `\n📈 年金缴纳：-${annuityDeduction.toFixed(2)}万（${(currentRate*100).toFixed(0)}%）`;
+            }
+            
+            // 检查晋升
+            checkPromotion();
+            
+            // 判断是否是Q4（年末）
+            const isYearEnd = gameState.quarter === 4;
+            
+            showModal({
+                label: '💰 季度结算',
+                title: '工资到账',
+                content: `本季度工资已发放！\n\n📥 收入：+${income.toFixed(1)}万\n📤 支出：-${expense.toFixed(1)}万\n💵 净收入：+${netIncome.toFixed(1)}万${annuityMsg}`,
+                effects: {},
+                btnText: '朕已阅',
+                onConfirm: () => {
+                    console.log('Quarter settlement confirmed');
+                    // V1.2.14：Q2结算后触发年金申请（检查是否已拒绝）
+                    if (gameState.totalQuarters === 2 && !gameState.annuityJoined && !gameState.annuityWithdrawn && gameState.annuityJoined !== 'rejected') {
+                        console.log('Showing annuity choice modal');
+                        showAnnuityChoiceModal();
+                    } else if (isYearEnd) {
+                        console.log('Going to year end settlement');
+                        // Q4进入年末结算流程
+                        yearEndSettlement();
+                    } else {
+                        console.log('Going to next quarter');
+                        // 非Q4进入下一季度
+                        nextQuarter();
+                    }
+                }
+            });
+        }
+        
+        // 年末结算（V1.2.9：添加年金年度计息）
+        function yearEndSettlement() {
+            let annuityInterestMsg = '';
+            
+            // 年金年度计息
+            if (gameState.annuityJoined && !gameState.annuityFrozen && gameState.annuity > 0) {
+                // 计算已缴纳年数
+                const yearsJoined = gameState.year - gameState.annuityJoinedYear;
+                
+                // 满5年后开始年度计息（第6年起）
+                if (yearsJoined >= 6) {
+                    // 利息 = 年初余额 × 3%
+                    const interest = gameState.annuityYearStartBalance * ANNUITY_GROWTH_RATE;
+                    gameState.annuity += interest;
+                    annuityInterestMsg = `\n💹 年金利息：+${interest.toFixed(2)}万`;
+                }
+                
+                // 更新下一年年初余额
+                gameState.annuityYearStartBalance = gameState.annuity;
+            }
+            
+            // 计算财产（现金+年金）
+            const totalAsset = gameState.cash + gameState.annuity;
+            
+            showModal({
+                label: '📊 年末结算',
+                title: `第 ${gameState.year} 年度总结`,
+                content: `本年度已结束，以下是您的年度财务状况：\n\n💰 现金：${gameState.cash.toFixed(2)}万\n📈 年金：${gameState.annuity.toFixed(2)}万${annuityInterestMsg}\n💎 财产：${totalAsset.toFixed(2)}万\n🏆 职级：${gameState.rank}`,
+                effects: {},
+                btnText: '进入下一年',
+                onConfirm: () => {
+                    // 检查是否是年金取出节点（第6、11、16年...）
+                    const yearsSinceJoined = gameState.year - gameState.annuityJoinedYear;
+                    if (gameState.annuityJoined && !gameState.annuityFrozen && 
+                        yearsSinceJoined >= 6 && (yearsSinceJoined - 6) % 5 === 0) {
+                        // 是取出节点，显示取出弹窗
+                        showAnnuityWithdrawModal();
+                    } else {
+                        // 不是取出节点，直接进入下一年
+                        nextQuarter();
+                    }
+                }
+            });
+        }
+        
+        // 进入下一季度
+        function nextQuarter() {
+            console.log('nextQuarter called:', 'Current Q:', gameState.quarter, 'Total Q:', gameState.totalQuarters);
+            // 进入下一季度
+            gameState.quarter++;
+            gameState.totalQuarters++;
+            gameState.actionPoints = 3;
+            console.log('After nextQuarter - Q:', gameState.quarter, 'Total Q:', gameState.totalQuarters, 'ActionPoints:', gameState.actionPoints);
+            
+            if (gameState.quarter > 4) {
+                gameState.quarter = 1;
+                gameState.year++;
+                gameState.age++;
+            }
+            
+            updateUI();
+            renderActions(); // 重新渲染行动按钮
+
+            // 检查年金申请提示
+            checkAnnuityPrompt();
+
+            // 检查游戏结束
+            if (checkGameOverSilent()) return;
+            
+            // 新季度随机事件（第1年Q2不出现随机事件，因为会触发年金申请）
+            if (gameState.totalQuarters !== 2) {
+                setTimeout(() => {
+                    showRandomEvent();
+                }, 300);
+            }
+        }
+        
+        // 显示年金选择弹窗（V1.2.10：更新规则说明）
+        function showAnnuityChoiceModal() {
+            const overlay = document.getElementById('modal-overlay');
+            
+            document.getElementById('modal-label').textContent = '📋 年金申请';
+            document.getElementById('modal-label').className = 'text-xs text-slate-400 uppercase tracking-wider mb-1';
+            document.getElementById('modal-title').textContent = '企业年金计划';
+            document.getElementById('modal-content').innerHTML = `
+                <p class="mb-3">你已满半年，可申请加入企业年金计划。</p>
+                <div class="bg-slate-50 rounded-xl p-3 mb-3 text-sm">
+                    <div class="font-bold mb-2">📌 规则说明：</div>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• 第1-10年：每月扣除月薪5%</li>
+                        <li>• 第11年起：每年扣除比例+2%（最高30%）</li>
+                        <li>• 计息等待期：缴纳满5年（第6年Q4起年度计息3%）</li>
+                        <li>• 取出节点：第6、11、16年...的Q4</li>
+                        <li>• 取出比例：100%、70%、50%、30%四档</li>
+                        <li>• 全额取出后账户冻结，5年后可重新加入</li>
+                    </ul>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex items-start gap-2">
+                        <span class="text-green-500">💡</span>
+                        <span><b>加入：</b>现金流降低，但长期财产增值</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-amber-500">💡</span>
+                        <span><b>不加入：</b>现金流充裕，但无升值空间</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            // 替换按钮为双按钮
+            const btn = document.getElementById('modal-btn');
+            btn.outerHTML = `
+                <div id="annuity-buttons" class="grid grid-cols-2 gap-3 mt-4">
+                    <button onclick="joinAnnuity()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">申请加入</button>
+                    <button onclick="skipAnnuity()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition">暂不加入</button>
+                </div>
+                <button id="modal-btn" onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition hidden">知道了</button>
+            `;
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 加入年金（V1.2.15：修复游戏卡住bug，确保继续游戏流程）
+        function joinAnnuity() {
+            gameState.annuityJoined = true;
+            gameState.annuityJoinedYear = gameState.year;
+            gameState.annuityJoinedQuarter = gameState.totalQuarters;
+            gameState.annuityYearStartBalance = 0; // 初始余额为0
+            
+            // 先关闭年金申请弹窗
+            closeModal();
+            
+            // 延迟显示成功弹窗，确保DOM更新完成
+            setTimeout(() => {
+                showModal({
+                    label: '✅ 申请成功',
+                    title: '已加入年金计划',
+                    content: '从第1年Q3开始，每月将扣除月薪的5%存入年金账户。',
+                    effects: {},
+                    btnText: '知道了',
+                    onConfirm: () => {
+                        updateUI();
+                        // 关键：继续进入下一季度，否则游戏会卡住
+                        nextQuarter();
+                    }
+                });
+            }, 100);
+        }
+
+        // 跳过年金（V1.2.15：修复游戏卡住bug）
+        function skipAnnuity() {
+            // 记录玩家已拒绝年金（使用特殊标记，避免再次触发）
+            gameState.annuityJoined = 'rejected';
+            
+            // 先关闭年金申请弹窗
+            closeModal();
+            
+            // 延迟显示跳过弹窗
+            setTimeout(() => {
+                showModal({
+                    label: '⏭️ 已跳过',
+                    title: '暂不加入年金',
+                    content: '你选择了不加入企业年金计划。此决定不可更改。',
+                    effects: {},
+                    btnText: '知道了',
+                    onConfirm: () => {
+                        updateUI();
+                        // 关键：继续进入下一季度，否则游戏会卡住
+                        nextQuarter();
+                    }
+                });
+            }, 100);
+        }
+
+        // 显示年金取出弹窗（V1.2.9：四档比例）
+        function showAnnuityWithdrawModal() {
+            const overlay = document.getElementById('modal-overlay');
+            
+            document.getElementById('modal-label').textContent = '💰 年金取出';
+            document.getElementById('modal-label').className = 'text-xs text-amber-400 uppercase tracking-wider mb-1';
+            document.getElementById('modal-title').textContent = '年金账户可取';
+            document.getElementById('modal-content').innerHTML = `
+                <p class="mb-3">第 ${gameState.year} 年是年金取出节点，账户余额 ${gameState.annuity.toFixed(2)} 万。</p>
+                <div class="bg-slate-50 rounded-xl p-3 mb-3 text-sm">
+                    <div class="font-bold mb-2">📌 请选择取出比例：</div>
+                    <div class="space-y-2">
+                        <div class="flex items-start gap-2">
+                            <span class="text-green-500">💰</span>
+                            <span><b>100%取出：</b>全部取出，账户冻结，5年后可重新加入</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-blue-500">📈</span>
+                            <span><b>70%取出：</b>取出70%，剩余30%继续计息和缴纳</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-purple-500">📊</span>
+                            <span><b>50%取出：</b>取出50%，剩余50%继续计息和缴纳</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-orange-500">💵</span>
+                            <span><b>30%取出：</b>取出30%，剩余70%继续计息和缴纳</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            // 隐藏默认按钮
+            const modalBtn = document.getElementById('modal-btn');
+            modalBtn.classList.add('hidden');
+            
+            // 移除已存在的按钮容器
+            const existingContainer = document.getElementById('annuity-withdraw-options');
+            if (existingContainer) {
+                existingContainer.remove();
+            }
+            
+            // 创建四按钮容器
+            const btnContainer = document.createElement('div');
+            btnContainer.id = 'annuity-withdraw-options';
+            btnContainer.className = 'grid grid-cols-2 gap-3 mt-4';
+            btnContainer.innerHTML = `
+                <button id="btn-w100" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition">100%取出</button>
+                <button id="btn-w70" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">70%取出</button>
+                <button id="btn-w50" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition">50%取出</button>
+                <button id="btn-w30" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl transition">30%取出</button>
+            `;
+            modalBtn.parentNode.insertBefore(btnContainer, modalBtn);
+            
+            // 绑定按钮事件
+            const withdrawOptions = [
+                { id: 'btn-w100', rate: 1.0 },
+                { id: 'btn-w70', rate: 0.7 },
+                { id: 'btn-w50', rate: 0.5 },
+                { id: 'btn-w30', rate: 0.3 }
+            ];
+            
+            withdrawOptions.forEach(opt => {
+                document.getElementById(opt.id).onclick = () => {
+                    const withdrawAmount = gameState.annuity * opt.rate;
+                    gameState.cash += withdrawAmount;
+                    gameState.annuity -= withdrawAmount;
+                    gameState.annuityLastWithdrawYear = gameState.year;
+                    
+                    btnContainer.remove();
+                    modalBtn.classList.remove('hidden');
+                    
+                    if (opt.rate === 1.0) {
+                        // 全额取出，冻结账户
+                        gameState.annuityFrozen = true;
+                        gameState.annuityRejoinYear = gameState.year + 5;
+                        showModal({
+                            label: '💰 取出成功',
+                            title: '年金已全额取出',
+                            content: `${withdrawAmount.toFixed(2)}万已转入你的现金账户。\n\n账户已冻结，第 ${gameState.annuityRejoinYear} 年可重新加入。`,
+                            effects: {},
+                            btnText: '知道了',
+                            onConfirm: () => nextQuarter()
+                        });
+                    } else {
+                        // 部分取出，继续缴纳
+                        showModal({
+                            label: '💰 取出成功',
+                            title: '年金已部分取出',
+                            content: `取出 ${(opt.rate*100).toFixed(0)}%：${withdrawAmount.toFixed(2)}万已转入现金账户。\n\n剩余 ${gameState.annuity.toFixed(2)}万 继续计息和缴纳。`,
+                            effects: {},
+                            btnText: '知道了',
+                            onConfirm: () => nextQuarter()
+                        });
+                    }
+                };
+            });
+            
+            // 阻止点击遮罩关闭
+            overlay.onclick = function(e) {
+                if (e.target === overlay) {
+                    return;
+                }
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 显示年金取出选择弹窗（双按钮版本）
+        function showAnnuityWithdrawChoiceModal(annuityYears) {
+            const overlay = document.getElementById('modal-overlay');
+            
+            document.getElementById('modal-label').textContent = '💰 年金到期';
+            document.getElementById('modal-label').className = 'text-xs text-amber-400 uppercase tracking-wider mb-1';
+            document.getElementById('modal-title').textContent = '年金可取';
+            document.getElementById('modal-content').innerHTML = `
+                <p class="mb-3">你已连续缴纳${annuityYears}年年金，账户余额${gameState.annuity.toFixed(2)}万。</p>
+                <div class="bg-slate-50 rounded-xl p-3 mb-3 text-sm">
+                    <div class="font-bold mb-2">📌 可选择：</div>
+                    <div class="space-y-2">
+                        <div class="flex items-start gap-2">
+                            <span class="text-green-500">💰</span>
+                            <span><b>立即取出：</b>一次性到账，取出后不可再次加入</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-blue-500">📈</span>
+                            <span><b>继续缴纳：</b>从第11年开始，每年扣除比例+2%（最高30%），继续享受升值</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            // 隐藏默认按钮
+            const modalBtn = document.getElementById('modal-btn');
+            modalBtn.classList.add('hidden');
+            
+            // 移除已存在的按钮容器
+            const existingContainer = document.getElementById('annuity-withdraw-buttons');
+            if (existingContainer) {
+                existingContainer.remove();
+            }
+            
+            // 创建双按钮容器
+            const btnContainer = document.createElement('div');
+            btnContainer.id = 'annuity-withdraw-buttons';
+            btnContainer.className = 'grid grid-cols-2 gap-3 mt-4';
+            btnContainer.innerHTML = `
+                <button id="btn-withdraw" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition">立即取出</button>
+                <button id="btn-continue" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">继续缴纳</button>
+            `;
+            modalBtn.parentNode.insertBefore(btnContainer, modalBtn);
+            
+            // 绑定取出按钮事件
+            document.getElementById('btn-withdraw').onclick = () => {
+                const withdrawnAmount = gameState.annuity;
+                gameState.cash += withdrawnAmount;
+                gameState.annuity = 0;
+                gameState.annuityWithdrawn = true;
+                btnContainer.remove();
+                modalBtn.classList.remove('hidden');
+                showModal({
+                    label: '💰 取出成功',
+                    title: '年金已到账',
+                    content: `${withdrawnAmount.toFixed(2)}万已转入你的现金账户。`,
+                    effects: {},
+                    btnText: '知道了',
+                    onConfirm: () => {
+                        updateUI();
+                        nextQuarter();
+                    }
+                });
+            };
+
+            // 绑定继续缴纳按钮事件
+            document.getElementById('btn-continue').onclick = () => {
+                gameState.annuityContinued = true;
+                btnContainer.remove();
+                modalBtn.classList.remove('hidden');
+                showModal({
+                    label: '📈 继续缴纳',
+                    title: '选择继续缴纳年金',
+                    content: `你选择了继续缴纳年金。从第11年开始，每年扣除比例将增加2%（最高30%），继续享受年金升值。`,
+                    effects: {},
+                    btnText: '知道了',
+                    onConfirm: () => updateUI()
+                });
+            };
+            
+            // 阻止点击遮罩关闭
+            overlay.onclick = function(e) {
+                if (e.target === overlay) {
+                    return;
+                }
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 检查年金申请提示（V1.2.10：移除Q2触发，改为在季度结算中处理）
+        function checkAnnuityPrompt() {
+            // 检查是否可以重新加入（全额取出后5年）
+            if (gameState.annuityFrozen && gameState.year >= gameState.annuityRejoinYear) {
+                gameState.annuityFrozen = false;
+                gameState.annuityJoined = false; // 重置为未加入状态，触发加入邀请
+                setTimeout(() => {
+                    showAnnuityChoiceModal();
+                }, 500);
+            }
+        }
+
+        // 检查晋升
+        function checkPromotion() {
+            const promotions = [
+                { from: '科员', to: '副科', level: 2, needZili: 40, needGuanxi: 30 },
+                { from: '副科', to: '正科', level: 3, needZili: 80, needGuanxi: 60, maxAge: 35 },
+                { from: '正科', to: '主任', level: 4, needZili: 120, needGuanxi: 90 },
+                { from: '主任', to: '高级主任', level: 5, needZili: 180, needGuanxi: 140, minYears: 6 },
+                { from: '高级主任', to: '副处', level: 6, needZili: 250, needGuanxi: 200, minYears: 10 },
+                { from: '副处', to: '正处', level: 7, needZili: 350, needGuanxi: 280, minYears: 15 }
+            ];
+            
+            const promotionMessages = {
+                '副科': '副科意味着你不再是那个需要手把手教的新人了。你需要展现出独当一面的责任意识，开始承担更多管理协调工作。',
+                '正科': '正科是基层管理的关键岗位。你将成为科室的骨干力量，既要完成业务工作，也要带领团队前进。',
+                '主任': '主任是科室负责人。你将全面主持科室工作，对业务负责，对团队担当。',
+                '高级主任': '高级主任是资深管理岗位。你将参与部门重大决策，具备较高的业务权威。',
+                '副处': '副处是领导班子的重要成员。你将参与单位重大决策，需要具备全局视野和战略思维。',
+                '正处': '正处是部门一把手。你将全面主持部门工作，对上要负责，对下要担当，这是组织的信任，更是沉甸甸的责任。'
+            };
+            
+            for (let p of promotions) {
+                if (gameState.rank === p.from && 
+                    gameState.zili >= p.needZili && 
+                    gameState.guanxi >= p.needGuanxi &&
+                    (!p.maxAge || gameState.age <= p.maxAge) &&
+                    (!p.minYears || gameState.totalQuarters >= p.minYears * 4)) {
+                    
+                    const oldSalary = gameState.salary;
+                    gameState.rank = p.to;
+                    gameState.rankLevel = p.level;
+                    gameState.salary += 0.3; // 加薪
+                    
+                    // 晋升通知将在结算后显示
+                    setTimeout(() => {
+                        showPromotionModal(p.from, p.to, oldSalary, gameState.salary, promotionMessages[p.to]);
+                    }, 500);
+                    break;
+                }
+            }
+        }
+
+        // 显示晋升弹窗（仪式感版本）
+        function showPromotionModal(fromRank, toRank, oldSalary, newSalary, message) {
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-label').textContent = '🎉 任命通知';
+            document.getElementById('modal-label').className = 'text-xs text-amber-500 uppercase tracking-wider mb-1';
+            document.getElementById('modal-title').textContent = '';
+            
+            // 自定义晋升内容
+            const content = `
+                <div class="text-center mb-4">
+                    <div class="text-3xl font-bold text-slate-400">${fromRank}</div>
+                    <div class="text-2xl text-amber-500 my-1">↓</div>
+                    <div class="text-4xl font-bold text-amber-600">${toRank}</div>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-4 mb-4">
+                    <p class="text-slate-600 text-sm italic">"${message}"</p>
+                    <p class="text-slate-400 text-xs mt-2 text-right">— 组织与人才发展委员会</p>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-4">
+                    <div class="text-xs text-amber-600 font-bold mb-2">📦 新待遇</div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">原月薪</span>
+                        <span class="text-slate-400 line-through">${oldSalary.toFixed(2)} 万</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-slate-700 font-bold">新月薪</span>
+                        <span class="text-amber-600 font-bold">${newSalary.toFixed(2)} 万</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            const btn = document.getElementById('modal-btn');
+            btn.textContent = '我愿为单位赴汤蹈火 →';
+            btn.className = 'w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3 rounded-xl transition';
+            btn.onclick = () => {
+                document.getElementById('modal-label').className = 'text-xs text-slate-400 uppercase tracking-wider mb-1';
+                document.getElementById('modal-content').innerHTML = '';
+                closeModal();
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 静默检查游戏结束（用于结算时）
+        function checkGameOverSilent() {
+            let gameOver = false;
+            let reason = '';
+            
+            // 检查胜利条件：名下财产（现金+年金）达到1000万
+            const totalAsset = gameState.cash + gameState.annuity;
+            if (totalAsset >= 1000) {
+                setTimeout(() => {
+                    showVictory('财富自由');
+                }, 100);
+                return true;
+            }
+            
+            // 检查晋升至正处（胜利条件）
+            if (gameState.rank === '正处') {
+                setTimeout(() => {
+                    showVictory('晋升处长');
+                }, 100);
+                return true;
+            }
+            
+            // 检查60岁退休（胜利条件）
+            if (gameState.age >= 60) {
+                setTimeout(() => {
+                    showVictory('平安退休');
+                }, 100);
+                return true;
+            }
+            
+            if (gameState.mental <= 0) {
+                gameOver = true;
+                reason = '心态崩溃';
+            } else if (gameState.risk >= 100) {
+                gameOver = true;
+                reason = '东窗事发';
+            } else if (gameState.age >= 35 && gameState.rankLevel < 3) {
+                gameOver = true;
+                reason = '35岁危机';
+            }
+
+            if (gameOver) {
+                setTimeout(() => {
+                    showGameOver(reason);
+                }, 100);
+                return true;
+            }
+            return false;
+        }
+
+        // 显示胜利
+        function showVictory(type) {
+            const messages = {
+                '财富自由': '恭喜你！通过精明的理财和不懈的努力，你的名下财产突破1000万，实现了财富自由！',
+                '晋升正处': '恭喜你！经过数十年的奋斗，你终于晋升为正处级干部，成为部门一把手！',
+                '平安退休': '恭喜你！你在体制内平安工作了38年，光荣退休，享受幸福的晚年生活！'
+            };
+            
+            const totalAsset = gameState.cash + gameState.annuity;
+            
+            showModal({
+                label: '🎉 游戏胜利',
+                title: type,
+                content: `${messages[type]}\n\n📊 最终统计：\n• 工作年限：${gameState.totalQuarters} 个季度\n• 最终职级：${gameState.rank}\n• 现金资产：${gameState.cash.toFixed(2)} 万\n• 年金账户：${gameState.annuity.toFixed(2)} 万\n• 总财产：${totalAsset.toFixed(2)} 万`,
+                effects: {},
+                btnText: '再玩一次',
+                onConfirm: () => {
+                    incrementPlaythroughCount();
+                    location.reload();
+                }
+            });
+        }
+
+        // 增加通关次数
+        function incrementPlaythroughCount() {
+            let playthroughs = parseInt(localStorage.getItem('guoqi_playthroughs') || '0');
+            playthroughs++;
+            localStorage.setItem('guoqi_playthroughs', playthroughs.toString());
+            console.log('通关次数已增加至:', playthroughs);
+        }
+
+        // 应用效果（带岗位加成）
+        function applyEffects(effects) {
+            const jobBonus = jobs[gameState.job].bonus || {};
+            
+            for (let key in effects) {
+                if (gameState[key] !== undefined) {
+                    let value = effects[key];
+                    
+                    // 应用岗位加成
+                    if (key === 'guanxi' && value > 0 && jobBonus.guanxiGain) {
+                        value = value * (1 + jobBonus.guanxiGain);
+                    }
+                    if (key === 'cash' && value > 0 && jobBonus.cashGain) {
+                        value = value * (1 + jobBonus.cashGain);
+                    }
+                    if (key === 'zili' && value > 0 && jobBonus.ziliGain) {
+                        value = value * (1 + jobBonus.ziliGain);
+                    }
+                    if (key === 'mental' && value > 0 && jobBonus.mentalGain) {
+                        value = value * (1 + jobBonus.mentalGain);
+                    }
+                    if (key === 'mental' && value < 0 && jobBonus.mentalCost) {
+                        value = value * (1 + jobBonus.mentalCost);
+                    }
+                    
+                    gameState[key] = Math.max(0, gameState[key] + value);
+                }
+            }
+            
+            // HR岗位：人脉上限+10
+            const maxGuanxi = jobBonus.guanxiMax ? 350 + jobBonus.guanxiMax : 350;
+            if (gameState.guanxi > maxGuanxi) gameState.guanxi = maxGuanxi;
+            
+            // 限制资历上限为400
+            if (gameState.zili > 400) gameState.zili = 400;
+            
+            // 检查游戏结束条件
+            checkGameOver();
+        }
+
+        // 检查游戏结束
+        function checkGameOver() {
+            let gameOver = false;
+            let reason = '';
+            
+            if (gameState.mental <= 0) {
+                gameOver = true;
+                reason = '心态崩溃';
+            } else if (gameState.risk >= 100) {
+                gameOver = true;
+                reason = '东窗事发';
+            } else if (gameState.age >= 35 && gameState.rankLevel < 3) {
+                gameOver = true;
+                reason = '35岁危机';
+            }
+
+            if (gameOver) {
+                setTimeout(() => {
+                    showGameOver(reason);
+                }, 100);
+            }
+        }
+
+        // 显示游戏结束
+        function showGameOver(reason) {
+            const messages = {
+                '心态崩溃': '你承受不住压力，精神濒临崩溃，不得不递交辞呈。',
+                '东窗事发': '你的违规行为被举报，纪委介入调查，仕途终结。',
+                '35岁危机': '35岁仍未晋升正科，被单位"优化"，中年失业。'
+            };
+            
+            showModal({
+                label: '💀 游戏结束',
+                title: reason,
+                content: `${messages[reason]}\n\n你工作了 ${gameState.totalQuarters} 个季度，最终职级为 ${gameState.rank}。`,
+                effects: {},
+                btnText: '重新开始',
+                onConfirm: () => {
+                    location.reload();
+                }
+            });
+        }
+
+        // 显示弹窗
+        function showModal({ label, title, content, effects, btnText, onConfirm }) {
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-label').textContent = label;
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').textContent = content;
+            document.getElementById('modal-btn').textContent = btnText;
+            
+            // 清理之前可能存在的双按钮容器
+            const existingEventContainer = document.getElementById('event-btn-container');
+            if (existingEventContainer) {
+                existingEventContainer.remove();
+            }
+            const existingAnnuityButtons = document.getElementById('annuity-buttons');
+            if (existingAnnuityButtons) {
+                existingAnnuityButtons.remove();
+            }
+            
+            // 确保默认按钮显示
+            const modalBtn = document.getElementById('modal-btn');
+            modalBtn.classList.remove('hidden');
+            
+            // 渲染效果标签（只显示5个核心资源）
+            const effectsDiv = document.getElementById('modal-effects');
+            effectsDiv.innerHTML = '';
+            const names = { cash: '💰现金', guanxi: '🤝人脉', zili: '📄资历', mental: '😊心态', risk: '⚠️风险' };
+            for (let key in effects) {
+                // 只显示核心资源
+                if (!names[key]) continue;
+                const val = effects[key];
+                // 风险特殊处理：减少=安全(绿色)，增加=危险(红色)
+                let color;
+                if (key === 'risk') {
+                    color = val < 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                } else {
+                    color = val > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                }
+                const sign = val > 0 ? '+' : '';
+                effectsDiv.innerHTML += `<span class="${color} px-3 py-1 rounded-full text-sm font-medium">${names[key]} ${sign}${val}</span>`;
+            }
+            
+            // 绑定确认回调
+            modalBtn.onclick = () => {
+                closeModal();
+                if (onConfirm) onConfirm();
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+
+        // 更新UI
+        function updateUI() {
+            // 侧边栏
+            document.getElementById('sb-name').textContent = gameState.name;
+            document.getElementById('sb-job').textContent = gameState.jobName + ' | ' + gameState.rank;
+            document.getElementById('sb-age').textContent = gameState.age + '岁';
+            document.getElementById('sb-year').textContent = gameState.year;
+            document.getElementById('sb-total').textContent = gameState.totalQuarters;
+            document.getElementById('sb-quarter').textContent = 'Q' + gameState.quarter;
+            
+            // 现金和年金
+            document.getElementById('sb-cash').textContent = gameState.cash.toFixed(1) + '万';
+            document.getElementById('sb-bar-cash').style.width = Math.min(100, Math.max(0, gameState.cash) / 10) + '%';
+            
+            document.getElementById('sb-annuity').textContent = gameState.annuity.toFixed(1) + '万';
+            document.getElementById('sb-bar-annuity').style.width = Math.min(100, gameState.annuity / 10) + '%';
+            
+            // 总财产（现金+年金）
+            const totalAsset = gameState.cash + gameState.annuity;
+            document.getElementById('sb-total-asset').textContent = totalAsset.toFixed(1) + '万';
+            document.getElementById('sb-bar-total-asset').style.width = Math.min(100, totalAsset / 100) + '%';
+            
+            document.getElementById('sb-guanxi').textContent = Math.round(gameState.guanxi * 10) / 10;
+            document.getElementById('sb-bar-guanxi').style.width = Math.min(100, Math.max(0, gameState.guanxi) / 3.5) + '%';
+            document.getElementById('sb-zili').textContent = Math.round(gameState.zili * 10) / 10;
+            document.getElementById('sb-bar-zili').style.width = Math.min(100, Math.max(0, gameState.zili) / 4) + '%';
+            document.getElementById('sb-mental').textContent = Math.round(gameState.mental * 10) / 10;
+            document.getElementById('sb-bar-mental').style.width = Math.min(100, Math.max(0, gameState.mental)) + '%';
+            document.getElementById('sb-risk').textContent = Math.round(gameState.risk);
+            document.getElementById('sb-bar-risk').style.width = Math.min(100, Math.max(0, gameState.risk)) + '%';
+            
+            // 主界面
+            document.getElementById('display-year').textContent = gameState.year;
+            document.getElementById('display-quarter').textContent = 'Q' + gameState.quarter;
+            document.getElementById('action-points').textContent = gameState.actionPoints;
+        }
+
+        // 显示关于我弹窗
+        function showAbout() {
+            const aboutHTML = `
+<div class="space-y-4 text-sm text-slate-600">
+    <div class="text-center">
+        <div class="text-2xl mb-2">🏛️ 国企模拟器 V3.0</div>
+        <div class="text-xs text-slate-400">Made with VibeCoding</div>
+    </div>
+    
+    <div class="bg-purple-50 rounded-xl p-4">
+        <div class="font-bold text-purple-800 mb-2">👨‍💻 开发者</div>
+        <p class="mb-2"><b>西庸熊</b> 和他的小龙虾助理 <b>蟹皇堡🦞</b></p>
+        <p class="text-xs text-slate-500">一个本科清华硕士港大、梦想去互联网大厂挣钱却被困在某国企做产品总监的互联网人。</p>
+    </div>
+    
+    <div class="bg-blue-50 rounded-xl p-4">
+        <div class="font-bold text-blue-800 mb-2">💼 提供服务</div>
+        <ul class="space-y-1 text-xs">
+            <li>• 职业咨询</li>
+            <li>• 互联网产品面试辅导</li>
+            <li>• 简历梳理</li>
+            <li>• 入门课程</li>
+        </ul>
+        <p class="text-xs text-slate-500 mt-2">欢迎来咨询！</p>
+    </div>
+    
+    <div class="bg-slate-50 rounded-xl p-4">
+        <div class="font-bold text-slate-800 mb-2">🛠️ 开发工具</div>
+        <p class="text-xs">OpenCLaw + Kimi K2.5 大模型</p>
+        <p class="text-xs text-slate-400 mt-1">VibeCoding 纯 AI 驱动开发</p>
+    </div>
+    
+    <div class="text-center">
+        <div class="font-bold text-slate-800 mb-2">📧 反馈邮箱</div>
+        <a href="mailto:gyb3.thaa@vip.163.com" class="text-blue-600 hover:underline text-sm">gyb3.thaa@vip.163.com</a>
+    </div>
+    
+    <div class="text-center">
+        <div class="font-bold text-slate-800 mb-2">📱 扫码联系</div>
+        <img src="./qr-code.jpg" alt="微信二维码" class="w-32 h-32 mx-auto rounded-lg shadow" onerror="this.style.display='none'; this.nextElementSibling.textContent='二维码加载失败，请添加微信：gyb3';">
+        <p class="text-xs text-slate-400 mt-1">添加微信，获取更多职场干货</p>
+    </div>
+</div>`;
+            
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-label').textContent = '👤 关于我';
+            document.getElementById('modal-title').textContent = '开发者信息';
+            document.getElementById('modal-content').innerHTML = aboutHTML;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            const btn = document.getElementById('modal-btn');
+            btn.textContent = '知道了';
+            btn.className = 'w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition';
+            btn.onclick = () => {
+                closeModal();
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 显示广告位弹窗
+        function showAd() {
+            const adHTML = `
+<div class="text-center py-8">
+    <div class="text-6xl mb-4">📢</div>
+    <div class="text-2xl font-bold text-amber-600 mb-2">广告位招租</div>
+    <div class="text-lg text-slate-600 mb-4">各位金主爸爸看过来！</div>
+    <div class="bg-amber-50 rounded-xl p-4 text-sm text-slate-600">
+        <p class="mb-2">🎯 <b>精准用户群体</b></p>
+        <p class="text-xs mb-4">职场新人、互联网从业者、体制内工作人员</p>
+        
+        <p class="mb-2">📊 <b>广告形式</b></p>
+        <p class="text-xs mb-4">弹窗广告、横幅广告、植入式广告</p>
+        
+        <p class="mb-2">💰 <b>合作方式</b></p>
+        <p class="text-xs">按展示付费 / 按点击付费 / 长期合作</p>
+    </div>
+    <div class="mt-4 text-sm text-slate-500">
+        联系邮箱：<a href="mailto:gyb3.thaa@vip.163.com" class="text-blue-600 hover:underline">gyb3.thaa@vip.163.com</a>
+    </div>
+</div>`;
+            
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-label').textContent = '📢 广告位';
+            document.getElementById('modal-title').textContent = '商务合作';
+            document.getElementById('modal-content').innerHTML = adHTML;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            const btn = document.getElementById('modal-btn');
+            btn.textContent = '我要投广告';
+            btn.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition';
+            btn.onclick = () => {
+                window.location.href = 'mailto:gyb3.thaa@vip.163.com?subject=国企模拟器广告合作';
+            };
+            
+            // 添加关闭按钮
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '关闭';
+            closeBtn.className = 'w-full mt-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition';
+            closeBtn.onclick = () => {
+                closeModal();
+            };
+            btn.parentNode.insertBefore(closeBtn, btn.nextSibling);
+            
+            overlay.classList.remove('hidden');
+        }
+
+        // 其他功能
+        function showRules() {
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-label').textContent = '📋 游戏规则';
+            document.getElementById('modal-title').textContent = '游戏说明';
+            
+            const rulesHTML = `
+<div class="space-y-4 text-sm text-slate-600">
+    <div>
+        <div class="font-bold text-blue-800 mb-1">🎯 胜利条件（满足其一）</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>• 晋升至处长级别</li>
+            <li>• 名下财产（现金+年金）达到1000万</li>
+            <li>• 平安工作到60岁退休</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-red-800 mb-1">💀 失败条件（满足其一）</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>• 心态值降为0（崩溃离职）</li>
+            <li>• 35岁仍未晋升正科（中年危机）</li>
+            <li>• 风险值达到100%（东窗事发）</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-slate-800 mb-1">📊 核心属性</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>💰 现金 - 工资收入、理财、副业</li>
+            <li>🤝 人脉 - 同事关系、领导好感</li>
+            <li>📄 资历 - 工作经验、政治资本</li>
+            <li>😊 心态 - 心理健康、工作满意度</li>
+            <li>⚠️ 风险 - 违规操作、灰色地带</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-amber-800 mb-1">🏆 晋升规则</div>
+        <ul class="space-y-0.5 ml-4 text-xs">
+            <li>• 科员 → 副科：资历≥40，人脉≥30</li>
+            <li>• 副科 → 正科：资历≥80，人脉≥60，年龄≤35</li>
+            <li>• 正科 → 主任：资历≥120，人脉≥90</li>
+            <li>• 主任 → 高级主任：资历≥180，人脉≥140，入职≥6年</li>
+            <li>• 高级主任 → 副处：资历≥250，人脉≥200，入职≥10年</li>
+            <li>• 副处 → 正处：资历≥350，人脉≥280，入职≥15年</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-cyan-800 mb-1">📅 年度周期</div>
+        <ul class="space-y-0.5 ml-4">
+            <li>• 一年分为4个季度（Q1-Q4）</li>
+            <li>• 每季度有3个行动点</li>
+            <li>• 每年Q1年龄+1</li>
+            <li>• 每年Q4结束进行年度考核</li>
+        </ul>
+    </div>
+    <div>
+        <div class="font-bold text-indigo-800 mb-1">💰 经济系统</div>
+        <div class="ml-4">
+            <div class="font-medium mt-1">📥 季度收支</div>
+            <ul class="space-y-0.5 ml-2 text-xs">
+                <li>• 收入：Q1月工资发80%，剩余看公司营收</li>
+                <li>• 支出：每月扣除生活成本（月薪×0.3）</li>
+                <li>• 净收入：实际到账 = 月薪×0.7</li>
+            </ul>
+            <div class="font-medium mt-1">📈 企业年金（V1.2.9）</div>
+            <ul class="space-y-0.5 ml-2 text-xs">
+                <li>• 第1年Q2后触发加入邀请</li>
+                <li>• 第1-10年：每月扣除月薪5%</li>
+                <li>• 第11年起：每年扣除比例+2%（最高30%）</li>
+                <li>• 计息等待期：缴纳满5年（第6年Q4起年度计息3%）</li>
+                <li>• 取出节点：第6、11、16年...的Q4</li>
+                <li>• 取出比例：100%、70%、50%、30%四档</li>
+                <li>• 全额取出后账户冻结，5年后可重新加入</li>
+            </ul>
+        </div>
+    </div>
+</div>`;
+            
+            document.getElementById('modal-content').innerHTML = rulesHTML;
+            document.getElementById('modal-effects').innerHTML = '';
+            
+            const btn = document.getElementById('modal-btn');
+            btn.textContent = '知道了';
+            btn.onclick = () => {
+                closeModal();
+            };
+            
+            overlay.classList.remove('hidden');
+        }
+
+        function showHistory() {
+            let historyText = '📜 历史记录\n\n';
+            gameState.history.slice(-10).forEach((h, i) => {
+                historyText += `${h.year}年Q${h.quarter}: ${h.action}\n`;
+            });
+            showModal({
+                label: 'HISTORY',
+                title: '复盘',
+                content: historyText || '暂无记录',
+                effects: {},
+                btnText: '关闭'
+            });
+        }
+
+        function saveGame() {
+            localStorage.setItem('guoqi_v3_save', JSON.stringify(gameState));
+            showModal({
+                label: 'SAVE',
+                title: '保存成功',
+                content: '游戏已保存到本地。',
+                effects: {},
+                btnText: '好的'
+            });
+        }
+    </script>
+</body>
+</html>
